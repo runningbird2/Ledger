@@ -476,11 +476,11 @@ object DatabaseManager {
             this[Tables.Actions.world] = getOrCreateWorldId(
                 action.world ?: Identifier.fromNamespaceAndPath("minecraft", "overworld")
             )
-            this[Tables.Actions.blockState] = action.objectState
-            this[Tables.Actions.oldBlockState] = action.oldObjectState
+            this[Tables.Actions.blockState] = sanitizeDatabaseText(action.objectState)
+            this[Tables.Actions.oldBlockState] = sanitizeDatabaseText(action.oldObjectState)
             this[Tables.Actions.sourceName] = getOrCreateSourceId(action.sourceName)
             this[Tables.Actions.sourcePlayer] = action.sourceProfile?.let { getOrCreatePlayerId(it.id) }
-            this[Tables.Actions.extraData] = action.extraData
+            this[Tables.Actions.extraData] = sanitizeDatabaseText(action.extraData)
         }
     }
 
@@ -490,15 +490,57 @@ object DatabaseManager {
         if (player != null) {
             player.lastJoin = Instant.now()
             player.playerName = name
-            cache.playernameKeys[name] = player.id.value
+            cache.playerKeys.forcePut(uuid, player.id.value)
+            cache.playernameKeys.forcePut(name, player.id.value)
         } else {
             val entity = Tables.Player.new {
                 this.playerId = uuid
                 this.playerName = name
             }
-            cache.playerKeys[uuid] = entity.id.value
-            cache.playernameKeys[name] = entity.id.value
+            cache.playerKeys.forcePut(uuid, entity.id.value)
+            cache.playernameKeys.forcePut(name, entity.id.value)
         }
+    }
+
+    private fun sanitizeDatabaseText(value: String?): String? {
+        if (value == null) return null
+
+        var needsSanitizing = false
+        val sanitized = StringBuilder(value.length)
+        var index = 0
+
+        while (index < value.length) {
+            val char = value[index]
+
+            when {
+                char == '\u0000' -> {
+                    sanitized.append('\uFFFD')
+                    needsSanitizing = true
+                }
+
+                Character.isHighSurrogate(char) -> {
+                    if (index + 1 < value.length && Character.isLowSurrogate(value[index + 1])) {
+                        sanitized.append(char)
+                        sanitized.append(value[index + 1])
+                        index++
+                    } else {
+                        sanitized.append('\uFFFD')
+                        needsSanitizing = true
+                    }
+                }
+
+                Character.isLowSurrogate(char) -> {
+                    sanitized.append('\uFFFD')
+                    needsSanitizing = true
+                }
+
+                else -> sanitized.append(char)
+            }
+
+            index++
+        }
+
+        return if (needsSanitizing) sanitized.toString() else value
     }
 
     private fun Transaction.selectActionsSearch(params: ActionSearchParams, page: Int): SearchResults {
