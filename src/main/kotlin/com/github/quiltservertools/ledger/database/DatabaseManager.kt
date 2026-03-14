@@ -61,6 +61,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.sqlite.SQLiteConfig
 import org.sqlite.SQLiteDataSource
+import java.nio.charset.StandardCharsets
+import java.sql.SQLException
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.*
@@ -72,6 +74,11 @@ import kotlin.math.ceil
 const val MAX_QUERY_RETRIES = 10
 const val MIN_RETRY_DELAY = 1000L
 const val MAX_RETRY_DELAY = 300_000L
+
+private enum class RecoverableBatchInsertFailure(val logDescription: String) {
+    INCORRECT_STRING_VALUE("an incorrect string value"),
+    DATA_TOO_LONG("a value that exceeds the database column size"),
+}
 
 object DatabaseManager {
 
@@ -397,8 +404,53 @@ object DatabaseManager {
     }
 
     suspend fun logActionBatch(actions: List<ActionType>) {
-        execute {
-            insertActions(actions)
+        try {
+            execute {
+                insertActions(actions)
+            }
+        } catch (exception: Exception) {
+            val failure = getRecoverableBatchInsertFailure(exception) ?: throw exception
+
+            if (actions.size == 1) {
+                logWarn(
+                    "Dropping Ledger poison action after ${failure.logDescription}: " +
+                        summarizeActionForLog(actions.single()),
+                    exception
+                )
+                return
+            }
+
+            logWarn(
+                "Ledger batch insert hit ${failure.logDescription}. " +
+                    "Retrying ${actions.size} actions individually to isolate the poison row.",
+                exception
+            )
+
+            var inserted = 0
+            var skipped = 0
+
+            for (action in actions) {
+                try {
+                    execute {
+                        insertActions(listOf(action))
+                    }
+                    inserted++
+                } catch (rowException: Exception) {
+                    val rowFailure = getRecoverableBatchInsertFailure(rowException) ?: throw rowException
+
+                    skipped++
+                    logWarn(
+                        "Dropping Ledger poison action after ${rowFailure.logDescription}: " +
+                            summarizeActionForLog(action),
+                        rowException
+                    )
+                }
+            }
+
+            logWarn(
+                "Ledger batch recovery finished after ${failure.logDescription}. " +
+                    "Inserted $inserted action(s), skipped $skipped poison action(s)."
+            )
         }
     }
 
@@ -541,6 +593,76 @@ object DatabaseManager {
         }
 
         return if (needsSanitizing) sanitized.toString() else value
+    }
+
+    private fun getRecoverableBatchInsertFailure(exception: Throwable?): RecoverableBatchInsertFailure? {
+        var current = exception
+
+        while (current != null) {
+            if (current is SQLException) {
+                when {
+                    current.errorCode == 1366 -> return RecoverableBatchInsertFailure.INCORRECT_STRING_VALUE
+                    current.errorCode == 1406 -> return RecoverableBatchInsertFailure.DATA_TOO_LONG
+                    current.sqlState == "22001" -> return RecoverableBatchInsertFailure.DATA_TOO_LONG
+                }
+            }
+
+            current.message?.let { message ->
+                when {
+                    message.contains("Incorrect string value", ignoreCase = true) ->
+                        return RecoverableBatchInsertFailure.INCORRECT_STRING_VALUE
+                    message.contains("Data too long for column", ignoreCase = true) ->
+                        return RecoverableBatchInsertFailure.DATA_TOO_LONG
+                    message.contains("value too long", ignoreCase = true) ->
+                        return RecoverableBatchInsertFailure.DATA_TOO_LONG
+                }
+            }
+
+            current = current.cause
+        }
+
+        return null
+    }
+
+    private fun summarizeActionForLog(action: ActionType): String =
+        buildString {
+            append("identifier=").append(action.identifier)
+            append(", pos=").append(action.pos)
+            append(", world=").append(action.world)
+            append(", source=").append(action.sourceName)
+            append(", sourceProfile=").append(action.sourceProfile)
+            append(", object=").append(action.objectIdentifier)
+            append(", oldObject=").append(action.oldObjectIdentifier)
+            append(", blockState=").append(previewDatabaseText(action.objectState))
+            append(", oldBlockState=").append(previewDatabaseText(action.oldObjectState))
+            append(", extraData=").append(previewDatabaseText(action.extraData))
+        }
+
+    private fun previewDatabaseText(value: String?): String {
+        if (value == null) return "null"
+
+        val previewLength = minOf(value.length, 96)
+        val preview = buildString {
+            for (index in 0 until previewLength) {
+                val char = value[index]
+
+                when {
+                    char == '\\' -> append("\\\\")
+                    char == '\n' -> append("\\n")
+                    char == '\r' -> append("\\r")
+                    char == '\t' -> append("\\t")
+                    char.code in 0x20..0x7E -> append(char)
+                    else -> append(String.format("\\u%04X", char.code))
+                }
+            }
+        }
+
+        val utf8Hex = value.toByteArray(StandardCharsets.UTF_8)
+            .take(24)
+            .joinToString(separator = "") { byte -> "%02X".format(byte) }
+
+        val suffix = if (value.length > previewLength) "..." else ""
+        return "\"$preview$suffix\"(len=${value.length},utf8=$utf8Hex)"
     }
 
     private fun Transaction.selectActionsSearch(params: ActionSearchParams, page: Int): SearchResults {
