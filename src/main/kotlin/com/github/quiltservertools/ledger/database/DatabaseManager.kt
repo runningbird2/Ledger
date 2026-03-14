@@ -80,6 +80,11 @@ private enum class RecoverableBatchInsertFailure(val logDescription: String) {
     DATA_TOO_LONG("a value that exceeds the extra_data column size"),
 }
 
+private class RecoverableBatchInsertException(
+    val failure: RecoverableBatchInsertFailure,
+    cause: Throwable,
+) : RuntimeException("Recoverable batch insert failure: ${failure.logDescription}", cause)
+
 internal class RemainingBatchRetryException(
     val remainingActions: List<ActionType>,
     cause: Throwable,
@@ -410,25 +415,26 @@ object DatabaseManager {
 
     suspend fun logActionBatch(actions: List<ActionType>) {
         try {
-            execute {
+            executeBatchInsert {
                 insertActions(actions)
             }
-        } catch (exception: Exception) {
-            val failure = getRecoverableBatchInsertFailure(exception) ?: throw exception
+        } catch (exception: RecoverableBatchInsertException) {
+            val failure = exception.failure
+            val databaseError = summarizeThrowableForLog(exception.cause ?: exception)
 
             if (actions.size == 1) {
                 logWarn(
                     "Dropping Ledger poison action after ${failure.logDescription}: " +
-                        summarizeActionForLog(actions.single()),
-                    exception
+                        summarizeActionForLog(actions.single()) +
+                        "; database error: $databaseError"
                 )
                 return
             }
 
             logWarn(
                 "Ledger batch insert hit ${failure.logDescription}. " +
-                    "Retrying ${actions.size} actions individually to isolate the poison row.",
-                exception
+                    "Retrying ${actions.size} actions individually to isolate the poison row. " +
+                    "Database error: $databaseError"
             )
 
             var inserted = 0
@@ -436,20 +442,21 @@ object DatabaseManager {
 
             for ((index, action) in actions.withIndex()) {
                 try {
-                    execute {
+                    executeBatchInsert {
                         insertActions(listOf(action))
                     }
                     inserted++
-                } catch (rowException: Exception) {
-                    val rowFailure = getRecoverableBatchInsertFailure(rowException)
-                        ?: throw RemainingBatchRetryException(actions.subList(index, actions.size).toList(), rowException)
+                } catch (rowException: RecoverableBatchInsertException) {
+                    val rowDatabaseError = summarizeThrowableForLog(rowException.cause ?: rowException)
 
                     skipped++
                     logWarn(
-                        "Dropping Ledger poison action after ${rowFailure.logDescription}: " +
-                            summarizeActionForLog(action),
-                        rowException
+                        "Dropping Ledger poison action after ${rowException.failure.logDescription}: " +
+                            summarizeActionForLog(action) +
+                            "; database error: $rowDatabaseError"
                     )
+                } catch (rowException: Exception) {
+                    throw RemainingBatchRetryException(actions.subList(index, actions.size).toList(), rowException)
                 }
             }
 
@@ -457,6 +464,20 @@ object DatabaseManager {
                 "Ledger batch recovery finished after ${failure.logDescription}. " +
                     "Inserted $inserted action(s), skipped $skipped poison action(s)."
             )
+        }
+    }
+
+    private suspend fun <T : Any?> executeBatchInsert(body: suspend Transaction.() -> T): T {
+        return execute(retryable = false) {
+            try {
+                body(this)
+            } catch (exception: Exception) {
+                val failure = getRecoverableBatchInsertFailure(exception)
+                if (failure != null) {
+                    throw RecoverableBatchInsertException(failure, exception)
+                }
+                throw exception
+            }
         }
     }
 
@@ -480,11 +501,18 @@ object DatabaseManager {
             insertRegKeys(identifiers)
         }
 
-    private suspend fun <T : Any?> execute(body: suspend Transaction.() -> T): T {
+    private suspend fun <T : Any?> execute(
+        retryable: Boolean = true,
+        body: suspend Transaction.() -> T
+    ): T {
         return newSuspendedTransaction(context = databaseContext, db = database) {
-            maxAttempts = MAX_QUERY_RETRIES
-            minRetryDelay = MIN_RETRY_DELAY
-            maxRetryDelay = MAX_RETRY_DELAY
+            if (retryable) {
+                maxAttempts = MAX_QUERY_RETRIES
+                minRetryDelay = MIN_RETRY_DELAY
+                maxRetryDelay = MAX_RETRY_DELAY
+            } else {
+                maxAttempts = 1
+            }
 
             if (Ledger.config[DatabaseSpec.logSQL]) {
                 addLogger(ledgerLogger)
@@ -651,6 +679,22 @@ object DatabaseManager {
             append(", oldBlockState=").append(previewDatabaseText(action.oldObjectState))
             append(", extraData=").append(previewDatabaseText(action.extraData))
         }
+
+    private fun summarizeThrowableForLog(throwable: Throwable): String {
+        var current = throwable
+        while (current.cause != null) {
+            current = current.cause!!
+        }
+
+        val type = current::class.java.simpleName.ifBlank { current::class.java.name }
+        val message = current.message
+            ?.lineSequence()
+            ?.firstOrNull()
+            ?.trim()
+            .orEmpty()
+
+        return if (message.isBlank()) type else "$type: $message"
+    }
 
     private fun previewDatabaseText(value: String?): String {
         if (value == null) return "null"
