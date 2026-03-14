@@ -5,8 +5,10 @@ import com.mojang.serialization.Dynamic
 import net.minecraft.core.HolderGetter
 import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.NbtUtils
+import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
 import net.minecraft.resources.Identifier
 import net.minecraft.util.ProblemReporter
@@ -27,6 +29,13 @@ const val PROPERTIES = "Properties" // BlockState
 const val COUNT_PRE_1_20_5 = "Count" // ItemStack
 const val COUNT = "count" // ItemStack
 const val UUID = "UUID" // Entity
+private const val ID = "id"
+private const val PAGES = "pages"
+private const val FILTERED_PAGES = "filtered_pages"
+private const val WRITTEN_BOOK = "minecraft:written_book"
+private const val WRITABLE_BOOK = "minecraft:writable_book"
+private const val WRITTEN_BOOK_CONTENT = "minecraft:written_book_content"
+private const val WRITABLE_BOOK_CONTENT = "minecraft:writable_book_content"
 
 val LOGGER = LogUtils.getLogger()
 
@@ -74,7 +83,7 @@ object NbtUtils {
             .use {
                 val writeView = TagValueOutput.createWithContext(it, registries)
                 this.saveWithId(writeView)
-                return writeView.buildResult()
+                return redactBookContentTree(writeView.buildResult())
             }
     }
 
@@ -83,7 +92,7 @@ object NbtUtils {
             .use {
                 val writeView = TagValueOutput.createWithContext(it, this.registryAccess())
                 this.saveWithoutId(writeView)
-                return writeView.buildResult()
+                return redactBookContentTree(writeView.buildResult())
             }
     }
 
@@ -92,7 +101,56 @@ object NbtUtils {
             .use {
                 val writeView = TagValueOutput.createWithContext(it, registries)
                 writeView.store(ItemStack.MAP_CODEC, this)
-                return writeView.buildResult()
+                return redactBookContentTree(writeView.buildResult())
             }
+    }
+
+    private fun redactBookContentTree(root: CompoundTag): CompoundTag {
+        redactBookContent(root as Tag)
+        return root
+    }
+
+    private fun redactBookContent(tag: Tag) {
+        when (tag) {
+            is CompoundTag -> redactBookContentCompound(tag)
+            is ListTag -> redactBookContentList(tag)
+            else -> Unit
+        }
+    }
+
+    private fun redactBookContentCompound(tag: CompoundTag) {
+        redactModernBookContent(tag)
+        redactLegacyBookContent(tag)
+
+        for (key in tag.keySet().toList()) {
+            val child = tag.get(key) ?: continue
+            redactBookContent(child)
+        }
+    }
+
+    private fun redactBookContentList(tag: ListTag) {
+        for (index in 0 until tag.size) {
+            redactBookContent(tag.get(index))
+        }
+    }
+
+    private fun redactModernBookContent(tag: CompoundTag) {
+        tag.getCompound(WRITTEN_BOOK_CONTENT).ifPresent {
+            it.put(PAGES, ListTag())
+        }
+        tag.getCompound(WRITABLE_BOOK_CONTENT).ifPresent {
+            it.put(PAGES, ListTag())
+        }
+    }
+
+    private fun redactLegacyBookContent(tag: CompoundTag) {
+        when (tag.getStringOr(ID, "")) {
+            WRITTEN_BOOK, WRITABLE_BOOK -> {
+                if (tag.contains(PAGES)) {
+                    tag.put(PAGES, ListTag())
+                }
+                tag.remove(FILTERED_PAGES)
+            }
+        }
     }
 }
