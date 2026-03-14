@@ -74,10 +74,13 @@ import kotlin.math.ceil
 const val MAX_QUERY_RETRIES = 10
 const val MIN_RETRY_DELAY = 1000L
 const val MAX_RETRY_DELAY = 300_000L
+private val RECOVERABLE_ACTIONS_TEXT_COLUMNS = setOf("extra_data", "block_state", "old_block_state")
+private val ACTIONS_TEXT_COLUMN_REGEX = Regex("column '([^']+)'", RegexOption.IGNORE_CASE)
+private val DATA_TOO_LONG_COLUMN_REGEX = Regex("Data too long for column '([^']+)'", RegexOption.IGNORE_CASE)
 
 private enum class RecoverableBatchInsertFailure(val logDescription: String) {
     INCORRECT_STRING_VALUE("an incorrect string value"),
-    DATA_TOO_LONG("a value that exceeds the extra_data column size"),
+    DATA_TOO_LONG("a value that exceeds an actions text column size"),
 }
 
 private class RecoverableBatchInsertException(
@@ -635,7 +638,7 @@ object DatabaseManager {
         while (current != null) {
             when {
                 isIncorrectStringValue(current) -> return RecoverableBatchInsertFailure.INCORRECT_STRING_VALUE
-                isExtraDataTooLong(current) -> return RecoverableBatchInsertFailure.DATA_TOO_LONG
+                isRecoverableActionsTextTooLong(current) -> return RecoverableBatchInsertFailure.DATA_TOO_LONG
             }
 
             current = current.cause
@@ -645,25 +648,36 @@ object DatabaseManager {
     }
 
     private fun isIncorrectStringValue(exception: Throwable): Boolean {
-        if (exception is SQLException && exception.errorCode == 1366) {
-            return true
-        }
-
-        return exception.message?.contains("Incorrect string value", ignoreCase = true) == true
-    }
-
-    private fun isExtraDataTooLong(exception: Throwable): Boolean {
         val message = exception.message ?: return false
 
-        if (!message.contains("extra_data", ignoreCase = true)) {
+        if (!message.contains("Incorrect string value", ignoreCase = true)) {
             return false
         }
 
-        if (exception is SQLException && (exception.errorCode == 1406 || exception.sqlState == "22001")) {
-            return true
+        if (extractRecoverableActionsTextColumn(message) == null) {
+            return false
         }
 
-        return message.contains("Data too long for column", ignoreCase = true)
+        return exception !is SQLException || exception.errorCode == 1366
+    }
+
+    private fun isRecoverableActionsTextTooLong(exception: Throwable): Boolean {
+        val message = exception.message ?: return false
+
+        val match = DATA_TOO_LONG_COLUMN_REGEX.find(message) ?: return false
+        val column = match.groupValues[1].lowercase(Locale.ROOT)
+
+        if (column !in RECOVERABLE_ACTIONS_TEXT_COLUMNS) {
+            return false
+        }
+
+        return exception !is SQLException || exception.errorCode == 1406 || exception.sqlState == "22001"
+    }
+
+    private fun extractRecoverableActionsTextColumn(message: String): String? {
+        val match = ACTIONS_TEXT_COLUMN_REGEX.find(message) ?: return null
+        val column = match.groupValues[1].lowercase(Locale.ROOT)
+        return column.takeIf { it in RECOVERABLE_ACTIONS_TEXT_COLUMNS }
     }
 
     private fun summarizeActionForLog(action: ActionType): String =

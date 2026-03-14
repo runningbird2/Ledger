@@ -101,7 +101,9 @@ object ActionFactory {
         action.objectState = NbtUtils.blockStateToProperties(state)?.toString()
         action.oldObjectState = NbtUtils.blockStateToProperties(oldState)?.toString()
         action.sourceName = source
-        action.extraData = entity?.saveWithoutMetadata(world.registryAccess())?.toString()
+        action.extraData = entity?.saveWithoutMetadata(world.registryAccess())
+            ?.let(NbtUtils::redactBookPages)
+            ?.toString()
     }
 
     fun itemInsertAction(world: Level, stack: ItemStack, pos: BlockPos, source: String): ItemInsertActionType {
@@ -283,7 +285,7 @@ object ActionFactory {
         if (itemStack != null && !itemStack.isEmpty) {
             action.extraData = itemStack.createNbt(world.registryAccess()).toString()
         }
-        action.oldObjectState = oldEntityTags.toString()
+        action.oldObjectState = NbtUtils.redactBookPages(oldEntityTags.copy()).toString()
         action.objectState = entity.createNbt().toString()
         action.sourceName = sourceType
 

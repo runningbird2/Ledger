@@ -83,7 +83,7 @@ object NbtUtils {
             .use {
                 val writeView = TagValueOutput.createWithContext(it, registries)
                 this.saveWithId(writeView)
-                return redactBookContentTree(writeView.buildResult())
+                return redactBookPages(writeView.buildResult())
             }
     }
 
@@ -92,7 +92,7 @@ object NbtUtils {
             .use {
                 val writeView = TagValueOutput.createWithContext(it, this.registryAccess())
                 this.saveWithoutId(writeView)
-                return redactBookContentTree(writeView.buildResult())
+                return redactBookPages(writeView.buildResult())
             }
     }
 
@@ -101,11 +101,12 @@ object NbtUtils {
             .use {
                 val writeView = TagValueOutput.createWithContext(it, registries)
                 writeView.store(ItemStack.MAP_CODEC, this)
-                return redactBookContentTree(writeView.buildResult())
+                return redactBookPages(writeView.buildResult())
             }
     }
 
-    private fun redactBookContentTree(root: CompoundTag): CompoundTag {
+    // Ledger intentionally strips book text from persisted SNBT to avoid oversized exploit payloads.
+    fun redactBookPages(root: CompoundTag): CompoundTag {
         redactBookContent(root as Tag)
         return root
     }
