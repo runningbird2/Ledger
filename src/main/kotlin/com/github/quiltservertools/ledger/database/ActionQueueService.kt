@@ -35,11 +35,11 @@ object ActionQueueService {
     suspend fun drainAll() {
         job.cancel()
         while (queue.isNotEmpty()) {
-            drainBatch()
+            drainBatch(requeueFailures = false)
         }
     }
 
-    private suspend fun drainBatch() {
+    private suspend fun drainBatch(requeueFailures: Boolean) {
         val batch = mutableListOf<ActionType>()
         queue.drainTo(batch, Ledger.config[DatabaseSpec.batchSize])
 
@@ -54,11 +54,17 @@ object ActionQueueService {
                 throw throwable
             }
 
-            requeueFailedBatch(batch)
-            logWarn(
-                "Failed to persist ${batch.size} Ledger actions; requeued the batch and will retry in ${RETRY_DELAY_SECONDS}s.",
-                throwable
-            )
+            if (!requeueFailures) {
+                throw throwable
+            }
+
+            val retryActions = when (throwable) {
+                is RemainingBatchRetryException -> throwable.remainingActions
+                else -> batch
+            }
+
+            requeueFailedBatch(retryActions)
+            logWarn(buildRetryMessage(batch.size, retryActions.size), throwable)
             delay(RETRY_DELAY_SECONDS.seconds)
         }
     }
@@ -69,12 +75,20 @@ object ActionQueueService {
         }
     }
 
+    private fun buildRetryMessage(originalBatchSize: Int, retryActionCount: Int): String =
+        if (originalBatchSize == retryActionCount) {
+            "Failed to persist $retryActionCount Ledger actions; requeued the batch and will retry in ${RETRY_DELAY_SECONDS}s."
+        } else {
+            "Failed to persist $retryActionCount remaining Ledger actions from a batch of $originalBatchSize; " +
+                "requeued the remaining actions and will retry in ${RETRY_DELAY_SECONDS}s."
+        }
+
     private suspend fun prepareNextBatch() {
         job = Ledger.launch {
             if (queue.size < Ledger.config[DatabaseSpec.batchSize]) {
                 delay(Ledger.config[DatabaseSpec.batchDelay].ticks)
             }
-            if (queue.isNotEmpty()) drainBatch()
+            if (queue.isNotEmpty()) drainBatch(requeueFailures = true)
             prepareNextBatch()
         }
     }

@@ -77,8 +77,13 @@ const val MAX_RETRY_DELAY = 300_000L
 
 private enum class RecoverableBatchInsertFailure(val logDescription: String) {
     INCORRECT_STRING_VALUE("an incorrect string value"),
-    DATA_TOO_LONG("a value that exceeds the database column size"),
+    DATA_TOO_LONG("a value that exceeds the extra_data column size"),
 }
+
+internal class RemainingBatchRetryException(
+    val remainingActions: List<ActionType>,
+    cause: Throwable,
+) : RuntimeException("Retry ${remainingActions.size} remaining action(s)", cause)
 
 object DatabaseManager {
 
@@ -429,14 +434,15 @@ object DatabaseManager {
             var inserted = 0
             var skipped = 0
 
-            for (action in actions) {
+            for ((index, action) in actions.withIndex()) {
                 try {
                     execute {
                         insertActions(listOf(action))
                     }
                     inserted++
                 } catch (rowException: Exception) {
-                    val rowFailure = getRecoverableBatchInsertFailure(rowException) ?: throw rowException
+                    val rowFailure = getRecoverableBatchInsertFailure(rowException)
+                        ?: throw RemainingBatchRetryException(actions.subList(index, actions.size).toList(), rowException)
 
                     skipped++
                     logWarn(
@@ -599,29 +605,37 @@ object DatabaseManager {
         var current = exception
 
         while (current != null) {
-            if (current is SQLException) {
-                when {
-                    current.errorCode == 1366 -> return RecoverableBatchInsertFailure.INCORRECT_STRING_VALUE
-                    current.errorCode == 1406 -> return RecoverableBatchInsertFailure.DATA_TOO_LONG
-                    current.sqlState == "22001" -> return RecoverableBatchInsertFailure.DATA_TOO_LONG
-                }
-            }
-
-            current.message?.let { message ->
-                when {
-                    message.contains("Incorrect string value", ignoreCase = true) ->
-                        return RecoverableBatchInsertFailure.INCORRECT_STRING_VALUE
-                    message.contains("Data too long for column", ignoreCase = true) ->
-                        return RecoverableBatchInsertFailure.DATA_TOO_LONG
-                    message.contains("value too long", ignoreCase = true) ->
-                        return RecoverableBatchInsertFailure.DATA_TOO_LONG
-                }
+            when {
+                isIncorrectStringValue(current) -> return RecoverableBatchInsertFailure.INCORRECT_STRING_VALUE
+                isExtraDataTooLong(current) -> return RecoverableBatchInsertFailure.DATA_TOO_LONG
             }
 
             current = current.cause
         }
 
         return null
+    }
+
+    private fun isIncorrectStringValue(exception: Throwable): Boolean {
+        if (exception is SQLException && exception.errorCode == 1366) {
+            return true
+        }
+
+        return exception.message?.contains("Incorrect string value", ignoreCase = true) == true
+    }
+
+    private fun isExtraDataTooLong(exception: Throwable): Boolean {
+        val message = exception.message ?: return false
+
+        if (!message.contains("extra_data", ignoreCase = true)) {
+            return false
+        }
+
+        if (exception is SQLException && (exception.errorCode == 1406 || exception.sqlState == "22001")) {
+            return true
+        }
+
+        return message.contains("Data too long for column", ignoreCase = true)
     }
 
     private fun summarizeActionForLog(action: ActionType): String =
