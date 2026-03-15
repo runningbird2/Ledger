@@ -115,7 +115,7 @@ abstract class AbstractActionType : ActionType {
             )
         }
 
-    protected fun appendItemCopyControl(
+    protected fun withItemCopyControl(
         source: CommandSourceStack,
         message: MutableComponent,
         stack: ItemStack
@@ -126,16 +126,10 @@ abstract class AbstractActionType : ActionType {
             return message
         }
 
-        return message.append(
-            " [get]".literal().setStyle(TextColorPallet.primaryVariant).withStyle {
-                it.withHoverEvent(
-                    HoverEvent.ShowText(
-                        "Click to get a copy of this item".literal()
-                    )
-                ).withClickEvent(
-                    ClickEvent.RunCommand("/lg item $id")
-                )
-            }
-        )
+        return message.withStyle {
+            it.withClickEvent(
+                ClickEvent.RunCommand("/lg item $id")
+            )
+        }
     }
 }

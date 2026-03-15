@@ -36,7 +36,7 @@ open class ItemDropActionType : AbstractActionType(), LoggedItemProvider {
     override fun getObjectMessage(source: CommandSourceStack): Component {
         val stack = getStack(source.server)
 
-        return appendItemCopyControl(source, "${stack.count} ".literal().append(
+        return "${stack.count} ".literal().append(
             stack.itemName
         ).setStyle(TextColorPallet.secondaryVariant).withStyle {
             it.withHoverEvent(
@@ -44,7 +44,7 @@ open class ItemDropActionType : AbstractActionType(), LoggedItemProvider {
                     stack
                 )
             )
-        }, stack)
+        }.let { withItemCopyControl(source, it, stack) }
     }
 
     override fun rollback(server: MinecraftServer): Boolean {

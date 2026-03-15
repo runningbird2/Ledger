@@ -77,7 +77,7 @@ class EntityChangeActionType : AbstractActionType(), LoggedItemProvider {
                 Component.literal(" ").append(Component.translatable("text.ledger.action_message.with")).append(" ")
             )
             text.append(
-                Component.translatable(
+                withItemCopyControl(source, Component.translatable(
                     stack.item.descriptionId
                 ).setStyle(TextColorPallet.secondaryVariant).withStyle {
                     it.withHoverEvent(
@@ -85,9 +85,8 @@ class EntityChangeActionType : AbstractActionType(), LoggedItemProvider {
                             stack
                         )
                     )
-                }
+                }, stack)
             )
-            appendItemCopyControl(source, text, stack)
         }
         return text
     }
