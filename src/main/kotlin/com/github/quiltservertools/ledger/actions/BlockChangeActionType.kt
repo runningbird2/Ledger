@@ -23,6 +23,7 @@ import net.minecraft.util.Util
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.ShulkerBoxBlock
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.storage.TagValueInput
 
@@ -120,14 +121,15 @@ open class BlockChangeActionType : AbstractActionType() {
         NbtUtils.blockItemFromProperties(extraData, identifier, server.registryAccess())
 
     protected fun getBlockObjectMessage(source: CommandSourceStack, identifier: Identifier): Component {
-        val stack = getLoggedBlockItem(identifier, source.server)
-        if (stack.isEmpty) {
-            return Component.translatable(
-                Util.makeDescriptionId(
-                    this.getTranslationType(),
-                    identifier
-                )
-            ).setStyle(TextColorPallet.secondaryVariant).withStyle {
+        val message = Component.translatable(
+            Util.makeDescriptionId(
+                this.getTranslationType(),
+                identifier
+            )
+        ).setStyle(TextColorPallet.secondaryVariant)
+
+        if (!supportsBlockItemPreview(identifier)) {
+            return message.withStyle {
                 it.withHoverEvent(
                     HoverEvent.ShowText(
                         identifier.toString().literal()
@@ -136,18 +138,28 @@ open class BlockChangeActionType : AbstractActionType() {
             }
         }
 
-        return withItemCopyControl(
-            source,
-            Component.literal("").append(stack.itemName).setStyle(TextColorPallet.secondaryVariant).withStyle {
+        val stack = getLoggedBlockItem(identifier, source.server)
+        if (stack.isEmpty) {
+            return message.withStyle {
                 it.withHoverEvent(
-                    HoverEvent.ShowItem(
-                        stack
+                    HoverEvent.ShowText(
+                        identifier.toString().literal()
                     )
                 )
-            },
-            stack
-        )
+            }
+        }
+
+        return message.withStyle {
+            it.withHoverEvent(
+                HoverEvent.ShowItem(
+                    stack
+                )
+            )
+        }
     }
+
+    private fun supportsBlockItemPreview(identifier: Identifier): Boolean =
+        BuiltInRegistries.BLOCK.getOptional(identifier).orElse(null) is ShulkerBoxBlock
 
     fun oldBlockState(blockLookup: HolderGetter<Block>) = checkForBlockState(
         oldObjectIdentifier,
