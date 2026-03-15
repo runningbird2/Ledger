@@ -20,6 +20,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.util.ProblemReporter
 import net.minecraft.util.Util
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.state.BlockState
@@ -113,6 +114,39 @@ open class BlockChangeActionType : AbstractActionType() {
             )
         }
         return text
+    }
+
+    protected fun getLoggedBlockItem(identifier: Identifier, server: MinecraftServer): ItemStack =
+        NbtUtils.blockItemFromProperties(extraData, identifier, server.registryAccess())
+
+    protected fun getBlockObjectMessage(source: CommandSourceStack, identifier: Identifier): Component {
+        val stack = getLoggedBlockItem(identifier, source.server)
+        if (stack.isEmpty) {
+            return Component.translatable(
+                Util.makeDescriptionId(
+                    this.getTranslationType(),
+                    identifier
+                )
+            ).setStyle(TextColorPallet.secondaryVariant).withStyle {
+                it.withHoverEvent(
+                    HoverEvent.ShowText(
+                        identifier.toString().literal()
+                    )
+                )
+            }
+        }
+
+        return withItemCopyControl(
+            source,
+            Component.literal("").append(stack.itemName).setStyle(TextColorPallet.secondaryVariant).withStyle {
+                it.withHoverEvent(
+                    HoverEvent.ShowItem(
+                        stack
+                    )
+                )
+            },
+            stack
+        )
     }
 
     fun oldBlockState(blockLookup: HolderGetter<Block>) = checkForBlockState(

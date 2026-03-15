@@ -1,20 +1,17 @@
 package com.github.quiltservertools.ledger.actions
 
 import com.github.quiltservertools.ledger.utility.LOGGER
-import com.github.quiltservertools.ledger.utility.TextColorPallet
 import com.github.quiltservertools.ledger.utility.getWorld
-import com.github.quiltservertools.ledger.utility.literal
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.core.registries.Registries
 import net.minecraft.nbt.TagParser
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.HoverEvent
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.ProblemReporter
-import net.minecraft.util.Util
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.storage.TagValueInput
 
-class BlockPlaceActionType : BlockChangeActionType() {
+class BlockPlaceActionType : BlockChangeActionType(), LoggedItemProvider {
     override val identifier = "block-place"
 
     override fun rollback(server: MinecraftServer): Boolean {
@@ -46,16 +43,7 @@ class BlockPlaceActionType : BlockChangeActionType() {
         return world != null
     }
 
-    override fun getObjectMessage(source: CommandSourceStack): Component = Component.translatable(
-        Util.makeDescriptionId(
-            this.getTranslationType(),
-            objectIdentifier
-        )
-    ).setStyle(TextColorPallet.secondaryVariant).withStyle {
-        it.withHoverEvent(
-            HoverEvent.ShowText(
-                objectIdentifier.toString().literal()
-            )
-        )
-    }
+    override fun getLoggedItem(server: MinecraftServer): ItemStack = getLoggedBlockItem(objectIdentifier, server)
+
+    override fun getObjectMessage(source: CommandSourceStack): Component = getBlockObjectMessage(source, objectIdentifier)
 }

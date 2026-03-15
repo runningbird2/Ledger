@@ -1,25 +1,14 @@
 package com.github.quiltservertools.ledger.actions
 
-import com.github.quiltservertools.ledger.utility.TextColorPallet
-import com.github.quiltservertools.ledger.utility.literal
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.HoverEvent
-import net.minecraft.util.Util
+import net.minecraft.server.MinecraftServer
+import net.minecraft.world.item.ItemStack
 
-class BlockBreakActionType : BlockChangeActionType() {
+class BlockBreakActionType : BlockChangeActionType(), LoggedItemProvider {
     override val identifier = "block-break"
 
-    override fun getObjectMessage(source: CommandSourceStack): Component = Component.translatable(
-        Util.makeDescriptionId(
-            this.getTranslationType(),
-            oldObjectIdentifier
-        )
-    ).setStyle(TextColorPallet.secondaryVariant).withStyle {
-        it.withHoverEvent(
-            HoverEvent.ShowText(
-                oldObjectIdentifier.toString().literal()
-            )
-        )
-    }
+    override fun getLoggedItem(server: MinecraftServer): ItemStack = getLoggedBlockItem(oldObjectIdentifier, server)
+
+    override fun getObjectMessage(source: CommandSourceStack): Component = getBlockObjectMessage(source, oldObjectIdentifier)
 }

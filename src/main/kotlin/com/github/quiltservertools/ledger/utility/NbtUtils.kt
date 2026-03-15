@@ -2,8 +2,11 @@ package com.github.quiltservertools.ledger.utility
 
 import com.mojang.logging.LogUtils
 import com.mojang.serialization.Dynamic
+import com.mojang.brigadier.exceptions.CommandSyntaxException
+import net.minecraft.core.BlockPos
 import net.minecraft.core.HolderGetter
 import net.minecraft.core.HolderLookup
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtOps
@@ -16,7 +19,10 @@ import net.minecraft.util.datafix.DataFixers
 import net.minecraft.util.datafix.fixes.References
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import net.minecraft.world.item.component.TypedEntityData
 import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.EntityBlock
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.storage.TagValueInput
@@ -76,6 +82,36 @@ object NbtUtils {
             val readView = TagValueInput.create(it, registries, itemTag)
             return readView.read(ItemStack.MAP_CODEC).orElse(ItemStack.EMPTY)
         }
+    }
+
+    fun blockItemFromProperties(tag: String?, name: Identifier, registries: HolderLookup.Provider): ItemStack {
+        val block = BuiltInRegistries.BLOCK.getOptional(name)
+        if (block.isEmpty) {
+            return ItemStack.EMPTY
+        }
+
+        val item = block.get().asItem()
+        if (item == Items.AIR) {
+            return ItemStack.EMPTY
+        }
+
+        val stack = item.defaultInstance
+        if (tag.isNullOrBlank()) {
+            return stack
+        }
+
+        val entityBlock = block.get() as? EntityBlock ?: return stack
+        val blockEntity = entityBlock.newBlockEntity(BlockPos.ZERO, block.get().defaultBlockState()) ?: return stack
+
+        val blockEntityTag = try {
+            TagParser.parseCompoundFully(tag)
+        } catch (_: CommandSyntaxException) {
+            return stack
+        }
+
+        TypedEntityData.of(blockEntity.type, blockEntityTag).loadInto(blockEntity, registries)
+        stack.applyComponents(blockEntity.collectComponents())
+        return stack
     }
 
     fun BlockEntity.createNbt(registries: HolderLookup.Provider): CompoundTag {
