@@ -25,7 +25,7 @@ import net.minecraft.world.level.block.LecternBlock
 import net.minecraft.world.level.block.entity.ChestBlockEntity
 import net.minecraft.world.level.block.entity.LecternBlockEntity
 
-abstract class ItemChangeActionType : AbstractActionType() {
+abstract class ItemChangeActionType : AbstractActionType(), LoggedItemProvider {
     // Not used
     override fun getTranslationType(): String = "item"
 
@@ -35,10 +35,12 @@ abstract class ItemChangeActionType : AbstractActionType() {
         server.registryAccess()
     )
 
+    override fun getLoggedItem(server: MinecraftServer): ItemStack = getStack(server)
+
     override fun getObjectMessage(source: CommandSourceStack): Component {
         val stack = getStack(source.server)
 
-        return "${stack.count} ".literal().append(
+        return appendItemCopyControl(source, "${stack.count} ".literal().append(
             stack.itemName
         ).setStyle(TextColorPallet.secondaryVariant).withStyle {
             it.withHoverEvent(
@@ -46,7 +48,7 @@ abstract class ItemChangeActionType : AbstractActionType() {
                     stack
                 )
             )
-        }
+        }, stack)
     }
 
     protected fun previewItemChange(preview: Preview, player: ServerPlayer, insert: Boolean) {

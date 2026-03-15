@@ -2,6 +2,7 @@ package com.github.quiltservertools.ledger.commands
 
 import com.github.quiltservertools.ledger.api.ExtensionManager
 import com.github.quiltservertools.ledger.commands.subcommands.InspectCommand
+import com.github.quiltservertools.ledger.commands.subcommands.ItemCommand
 import com.github.quiltservertools.ledger.commands.subcommands.PageCommand
 import com.github.quiltservertools.ledger.commands.subcommands.PlayerCommand
 import com.github.quiltservertools.ledger.commands.subcommands.PreviewCommand
@@ -36,6 +37,8 @@ fun registerCommands(dispatcher: Dispatcher) {
 
     rootNode.addChild(PageCommand.build())
     rootNode.addChild(BrigadierUtils.buildRedirect("pg", PageCommand.build()))
+
+    rootNode.addChild(ItemCommand.build())
 
     rootNode.addChild(RollbackCommand.build())
     rootNode.addChild(BrigadierUtils.buildRedirect("rb", RollbackCommand.build()))

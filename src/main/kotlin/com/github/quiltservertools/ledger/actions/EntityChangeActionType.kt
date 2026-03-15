@@ -24,7 +24,7 @@ import net.minecraft.world.item.BlockItem
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.storage.TagValueInput
 
-class EntityChangeActionType : AbstractActionType() {
+class EntityChangeActionType : AbstractActionType(), LoggedItemProvider {
     override val identifier = "entity-change"
 
     override fun getTranslationType(): String {
@@ -51,6 +51,8 @@ class EntityChangeActionType : AbstractActionType() {
             return item.defaultInstance
         }
     }
+
+    override fun getLoggedItem(server: MinecraftServer): ItemStack = getStack(server.registryAccess())
 
     override fun getObjectMessage(source: CommandSourceStack): Component {
         val text = Component.literal("")
@@ -85,6 +87,7 @@ class EntityChangeActionType : AbstractActionType() {
                     )
                 }
             )
+            appendItemCopyControl(source, text, stack)
         }
         return text
     }

@@ -535,6 +535,15 @@ object DatabaseManager {
             return@execute selectPlayers(players)
         }
 
+    suspend fun getAction(actionId: Int): ActionType? = execute {
+        val query = Tables.Actions
+            .selectAll()
+            .where { Tables.Actions.id eq actionId }
+            .limit(1)
+
+        return@execute getActionsFromQuery(query).firstOrNull()
+    }
+
     private fun Transaction.insertActionType(id: String) {
         Tables.ActionIdentifiers.insertIgnore {
             it[actionIdentifier] = id

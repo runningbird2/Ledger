@@ -1,22 +1,27 @@
 package com.github.quiltservertools.ledger.actions
 
 import com.github.quiltservertools.ledger.actionutils.Preview
+import com.github.quiltservertools.ledger.commands.CommandConsts
 import com.github.quiltservertools.ledger.utility.MessageUtils
 import com.github.quiltservertools.ledger.utility.Sources
 import com.github.quiltservertools.ledger.utility.TextColorPallet
+import com.github.quiltservertools.ledger.utility.hasPlayer
 import com.github.quiltservertools.ledger.utility.literal
+import me.lucko.fabric.api.permissions.v0.Permissions
 import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.chat.MutableComponent
 import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.players.NameAndId
 import net.minecraft.util.Util
 import net.minecraft.world.level.Level
+import net.minecraft.world.item.ItemStack
 import java.time.Instant
 import kotlin.time.ExperimentalTime
 
@@ -109,4 +114,28 @@ abstract class AbstractActionType : ActionType {
                 )
             )
         }
+
+    protected fun appendItemCopyControl(
+        source: CommandSourceStack,
+        message: MutableComponent,
+        stack: ItemStack
+    ): MutableComponent {
+        if (stack.isEmpty) return message
+        if (id <= 0 || this !is LoggedItemProvider || !source.hasPlayer()) return message
+        if (!Permissions.check(source.playerOrException, "ledger.commands.item", CommandConsts.PERMISSION_LEVEL)) {
+            return message
+        }
+
+        return message.append(
+            " [get]".literal().setStyle(TextColorPallet.primaryVariant).withStyle {
+                it.withHoverEvent(
+                    HoverEvent.ShowText(
+                        "Click to get a copy of this item".literal()
+                    )
+                ).withClickEvent(
+                    ClickEvent.RunCommand("/lg item $id")
+                )
+            }
+        )
+    }
 }

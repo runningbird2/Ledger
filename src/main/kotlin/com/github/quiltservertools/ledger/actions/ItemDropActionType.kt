@@ -19,7 +19,7 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.level.storage.TagValueInput
 
 // TODO remove duplication from ItemPickUpActionType and ItemDropActionType
-open class ItemDropActionType : AbstractActionType() {
+open class ItemDropActionType : AbstractActionType(), LoggedItemProvider {
     override val identifier = "item-drop"
 
     // Not used
@@ -31,10 +31,12 @@ open class ItemDropActionType : AbstractActionType() {
         server.registryAccess()
     )
 
+    override fun getLoggedItem(server: MinecraftServer): net.minecraft.world.item.ItemStack = getStack(server)
+
     override fun getObjectMessage(source: CommandSourceStack): Component {
         val stack = getStack(source.server)
 
-        return "${stack.count} ".literal().append(
+        return appendItemCopyControl(source, "${stack.count} ".literal().append(
             stack.itemName
         ).setStyle(TextColorPallet.secondaryVariant).withStyle {
             it.withHoverEvent(
@@ -42,7 +44,7 @@ open class ItemDropActionType : AbstractActionType() {
                     stack
                 )
             )
-        }
+        }, stack)
     }
 
     override fun rollback(server: MinecraftServer): Boolean {

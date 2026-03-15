@@ -18,7 +18,7 @@ import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.level.storage.TagValueInput
 
-open class ItemPickUpActionType : AbstractActionType() {
+open class ItemPickUpActionType : AbstractActionType(), LoggedItemProvider {
     override val identifier = "item-pick-up"
 
     // Not used
@@ -30,10 +30,12 @@ open class ItemPickUpActionType : AbstractActionType() {
         server.registryAccess()
     )
 
+    override fun getLoggedItem(server: MinecraftServer): net.minecraft.world.item.ItemStack = getStack(server)
+
     override fun getObjectMessage(source: CommandSourceStack): Component {
         val stack = getStack(source.server)
 
-        return "${stack.count} ".literal().append(
+        return appendItemCopyControl(source, "${stack.count} ".literal().append(
             stack.itemName
         ).setStyle(TextColorPallet.secondaryVariant).withStyle {
             it.withHoverEvent(
@@ -41,7 +43,7 @@ open class ItemPickUpActionType : AbstractActionType() {
                     stack
                 )
             )
-        }
+        }, stack)
     }
 
     override fun rollback(server: MinecraftServer): Boolean {
