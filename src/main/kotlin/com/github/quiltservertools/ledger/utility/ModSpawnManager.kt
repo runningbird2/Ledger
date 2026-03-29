@@ -99,8 +99,6 @@ object ModSpawnManager {
             false
         }
 
-        player.setGameMode(previousState.gameMode)
-
         if (targetWorld == null || !restoredLocation) {
             logWarn(
                 "Failed to fully restore modspawn return for ${player.scoreboardName}; " +
@@ -108,6 +106,8 @@ object ModSpawnManager {
             )
             return false
         }
+
+        player.setGameMode(previousState.gameMode)
 
         logInfo(
             "Restored modspawn return for ${player.scoreboardName} to " +
