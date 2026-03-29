@@ -22,7 +22,12 @@ import kotlin.time.toKotlinDuration
 
 object MessageUtils {
     @OptIn(ExperimentalTime::class)
-    suspend fun sendSearchResults(source: CommandSourceStack, results: SearchResults, header: Component) {
+    suspend fun sendSearchResults(
+        source: CommandSourceStack,
+        results: SearchResults,
+        header: Component,
+        pageCommandFactory: (Int) -> String = { "/lg pg $it" }
+    ) {
         // If the player has a Ledger compatible client, we send results as action packets rather than as chat messages
         if (source.hasPlayer() && source.playerOrException.hasNetworking()) {
             for (n in results.page..results.pages) {
@@ -52,7 +57,7 @@ object MessageUtils {
                                 Component.translatable("text.ledger.footer.page_backward.hover")
                             )
                         ).withClickEvent(
-                            ClickEvent.RunCommand("/lg pg ${results.page - 1}")
+                            ClickEvent.RunCommand(pageCommandFactory(results.page - 1))
                         )
                     } else {
                         Style.EMPTY
@@ -69,7 +74,7 @@ object MessageUtils {
                                 Component.translatable("text.ledger.footer.page_forward.hover")
                             )
                         ).withClickEvent(
-                            ClickEvent.RunCommand("/lg pg ${results.page + 1}")
+                            ClickEvent.RunCommand(pageCommandFactory(results.page + 1))
                         )
                     } else {
                         Style.EMPTY

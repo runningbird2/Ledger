@@ -50,7 +50,7 @@ object PreviewCommand : BuildableCommand {
             .build()
     }
 
-    private fun preview(context: Context, params: ActionSearchParams, type: Preview.Type): Int {
+    fun preview(context: Context, params: ActionSearchParams, type: Preview.Type): Int {
         val source = context.source
         val player = source.playerOrException
         params.ensureSpecific()

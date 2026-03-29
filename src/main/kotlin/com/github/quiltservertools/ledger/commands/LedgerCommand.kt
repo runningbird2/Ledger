@@ -3,11 +3,14 @@ package com.github.quiltservertools.ledger.commands
 import com.github.quiltservertools.ledger.api.ExtensionManager
 import com.github.quiltservertools.ledger.commands.subcommands.InspectCommand
 import com.github.quiltservertools.ledger.commands.subcommands.ItemCommand
+import com.github.quiltservertools.ledger.commands.subcommands.ModSpawnCommand
 import com.github.quiltservertools.ledger.commands.subcommands.PageCommand
 import com.github.quiltservertools.ledger.commands.subcommands.PlayerCommand
 import com.github.quiltservertools.ledger.commands.subcommands.PreviewCommand
 import com.github.quiltservertools.ledger.commands.subcommands.PurgeCommand
 import com.github.quiltservertools.ledger.commands.subcommands.RestoreCommand
+import com.github.quiltservertools.ledger.commands.subcommands.RestrictedRollbackCommand
+import com.github.quiltservertools.ledger.commands.subcommands.RestrictedSearchCommand
 import com.github.quiltservertools.ledger.commands.subcommands.RollbackCommand
 import com.github.quiltservertools.ledger.commands.subcommands.SearchCommand
 import com.github.quiltservertools.ledger.commands.subcommands.StatusCommand
@@ -21,6 +24,10 @@ fun registerCommands(dispatcher: Dispatcher) {
     val rootNode =
         literal("ledger").requires(Permissions.require("ledger.commands.root", CommandConsts.PERMISSION_LEVEL))
             .build()
+
+    dispatcher.root.addChild(RestrictedSearchCommand.build())
+    dispatcher.root.addChild(RestrictedRollbackCommand.build())
+    dispatcher.root.addChild(ModSpawnCommand.build())
 
     dispatcher.root.addChild(rootNode)
     dispatcher.root.addChild(

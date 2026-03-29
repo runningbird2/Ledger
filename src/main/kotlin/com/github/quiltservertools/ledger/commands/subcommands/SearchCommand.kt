@@ -26,7 +26,11 @@ object SearchCommand : BuildableCommand {
             .build()
     }
 
-    private fun search(context: Context, params: ActionSearchParams): Int {
+    fun search(
+        context: Context,
+        params: ActionSearchParams,
+        pageCommandFactory: (Int) -> String = { "/lg pg $it" }
+    ): Int {
         val source = context.source
 
         Ledger.launch {
@@ -45,7 +49,8 @@ object SearchCommand : BuildableCommand {
                 results,
                 Component.translatable(
                     "text.ledger.header.search"
-                ).setStyle(TextColorPallet.primary)
+                ).setStyle(TextColorPallet.primary),
+                pageCommandFactory
             )
         }
 

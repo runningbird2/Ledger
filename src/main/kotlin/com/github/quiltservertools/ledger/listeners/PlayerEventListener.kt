@@ -9,6 +9,7 @@ import com.github.quiltservertools.ledger.callbacks.ItemPickUpCallback
 import com.github.quiltservertools.ledger.database.ActionQueueService
 import com.github.quiltservertools.ledger.database.DatabaseManager
 import com.github.quiltservertools.ledger.network.Networking.disableNetworking
+import com.github.quiltservertools.ledger.utility.ModSpawnManager
 import com.github.quiltservertools.ledger.utility.inspectBlock
 import com.github.quiltservertools.ledger.utility.isInspecting
 import kotlinx.coroutines.launch
@@ -47,6 +48,7 @@ fun registerPlayerListeners() {
 }
 
 fun onLeave(handler: ServerGamePacketListenerImpl, server: MinecraftServer) {
+    ModSpawnManager.restoreOnDisconnect(handler.player)
     handler.player.disableNetworking()
 }
 
