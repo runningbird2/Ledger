@@ -72,5 +72,7 @@
     "error.ledger.modspawn.failed": "Unable to enter modspawn right now",
     "error.ledger.restricted.origin": "You can only use this command within 1000 blocks of 0,0",
     "error.ledger.restricted.range_global": "You must specify a local range for this command; @global is not allowed",
+    "error.ledger.restricted.range_too_big": "The maximum range for this command is %s",
+    "error.ledger.restricted.source": "You must target exactly one player or one @source with this command",
     "error.ledger.restricted.action": "Only block-break and block-place actions can be queried with this command"
 }

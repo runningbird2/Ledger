@@ -6,6 +6,8 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.level.levelgen.structure.BoundingBox
+import java.time.Duration
+import java.time.Instant
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -16,6 +18,8 @@ object RestrictedLedgerAccess {
     const val MODSPAWN_PERMISSION = "ledger.commands.moderator.modspawn"
 
     private const val ORIGIN_LIMIT = 1000
+    private const val ROLLBACK_PREVIEW_MAX_RANGE = 150
+    private val ROLLBACK_PREVIEW_MAX_AGE: Duration = Duration.ofDays(3)
     private val ORIGIN_SEARCH_BOUNDS =
         BoundingBox(-ORIGIN_LIMIT, -Int.MAX_VALUE, -ORIGIN_LIMIT, ORIGIN_LIMIT, Int.MAX_VALUE, ORIGIN_LIMIT)
     private val ALLOWED_ACTIONS = setOf("block-break", "block-place")
@@ -38,9 +42,23 @@ object RestrictedLedgerAccess {
             throw SimpleCommandExceptionType(Component.translatable("error.ledger.restricted.range_global")).create()
         }
 
+        val restrictedBounds = params.bounds?.let {
+            val clamped = clampToOrigin(it)
+            ensureRollbackRange(clamped)
+            clamped
+        }
+        ensureSpecificRollbackSource(params)
+
+        val cutoff = Instant.now().minus(ROLLBACK_PREVIEW_MAX_AGE)
+        val restrictedAfter = when (val after = params.after) {
+            null -> cutoff
+            else -> maxOf(after, cutoff)
+        }
+
         return copyWithRestrictions(
             params,
-            restrictedBounds = params.bounds?.let(::clampToOrigin)
+            restrictedBounds = restrictedBounds,
+            restrictedAfter = restrictedAfter
         )
     }
 
@@ -54,9 +72,11 @@ object RestrictedLedgerAccess {
 
     private fun copyWithRestrictions(
         params: ActionSearchParams,
-        restrictedBounds: BoundingBox?
+        restrictedBounds: BoundingBox?,
+        restrictedAfter: Instant? = params.after
     ): ActionSearchParams = params.copy(
         bounds = restrictedBounds,
+        after = restrictedAfter,
         actions = restrictActions(params.actions),
         objects = params.objects?.toMutableSet(),
         sourceNames = params.sourceNames?.toMutableSet(),
@@ -75,6 +95,29 @@ object RestrictedLedgerAccess {
         }
 
         return BoundingBox(minX, bounds.minY(), minZ, maxX, bounds.maxY(), maxZ)
+    }
+
+    private fun ensureRollbackRange(bounds: BoundingBox) {
+        val range = (max(bounds.xSpan, max(bounds.ySpan, bounds.zSpan)) + 1) / 2
+        if (range > ROLLBACK_PREVIEW_MAX_RANGE) {
+            throw SimpleCommandExceptionType(
+                Component.translatable(
+                    "error.ledger.restricted.range_too_big",
+                    ROLLBACK_PREVIEW_MAX_RANGE
+                )
+            ).create()
+        }
+    }
+
+    private fun ensureSpecificRollbackSource(params: ActionSearchParams) {
+        val allowedPlayerSources = params.sourcePlayerIds.orEmpty().filter { it.allowed }
+        val allowedSpecialSources = params.sourceNames.orEmpty().filter { it.allowed }
+        val hasDeniedSource = params.sourcePlayerIds.orEmpty().any { !it.allowed } ||
+                params.sourceNames.orEmpty().any { !it.allowed }
+
+        if (hasDeniedSource || allowedPlayerSources.size + allowedSpecialSources.size != 1) {
+            throw SimpleCommandExceptionType(Component.translatable("error.ledger.restricted.source")).create()
+        }
     }
 
     private fun restrictActions(actions: MutableSet<Negatable<String>>?): MutableSet<Negatable<String>> {
