@@ -53,7 +53,6 @@ object RestrictedSearchCommand : BuildableCommand {
             .build()
 
     private fun page(context: Context, page: Int): Int {
-        RestrictedLedgerAccess.requirePlayerWithinOrigin(context.source)
         val source = context.source
         val params = Ledger.searchCache[source.textName]
 
@@ -62,9 +61,12 @@ object RestrictedSearchCommand : BuildableCommand {
             return -1
         }
 
+        val restrictedParams = RestrictedLedgerAccess.restrictSearchParams(source, params)
+        Ledger.searchCache[source.textName] = restrictedParams
+
         Ledger.launch {
             MessageUtils.warnBusy(source)
-            val results = DatabaseManager.searchActions(params, page)
+            val results = DatabaseManager.searchActions(restrictedParams, page)
             if (results.actions.isEmpty() || page > results.pages) {
                 source.sendFailure(Component.translatable("error.ledger.no_more_pages"))
                 return@launch
