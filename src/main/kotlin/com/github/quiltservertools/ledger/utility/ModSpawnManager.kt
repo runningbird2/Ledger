@@ -2,26 +2,23 @@ package com.github.quiltservertools.ledger.utility
 
 import com.github.quiltservertools.ledger.logInfo
 import com.github.quiltservertools.ledger.logWarn
-import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 object ModSpawnManager {
     private const val MODSPAWN_X = 0.5
     private const val MODSPAWN_Y = 150.0
     private const val MODSPAWN_Z = 0.5
 
-    private val previousStates = ConcurrentHashMap<UUID, PreviousState>()
-
     fun start(player: ServerPlayer): StartResult {
-        if (previousStates.containsKey(player.uuid)) {
+        val previousStates = getSavedData(player.level().server) ?: return StartResult.FAILED
+        if (previousStates.contains(player.uuid)) {
             return StartResult.ALREADY_ACTIVE
         }
 
-        val previousState = PreviousState(
+        val previousState = ModSpawnState(
             world = player.level().dimension().identifier(),
             x = player.x,
             y = player.y,
@@ -31,7 +28,7 @@ object ModSpawnManager {
             gameMode = player.gameMode.gameModeForPlayer
         )
 
-        previousStates[player.uuid] = previousState
+        previousStates.put(player.uuid, previousState)
         logInfo(
             "Stored modspawn return for ${player.scoreboardName} at " +
                     "${previousState.world} ${previousState.x} ${previousState.y} ${previousState.z}"
@@ -67,17 +64,25 @@ object ModSpawnManager {
     }
 
     fun stop(player: ServerPlayer): StopResult {
-        val previousState = previousStates.remove(player.uuid) ?: return StopResult.NOT_ACTIVE
-        restore(player, previousState)
-        return StopResult.STOPPED
+        val previousStates = getSavedData(player.level().server) ?: return StopResult.FAILED
+        val previousState = previousStates.get(player.uuid) ?: return StopResult.NOT_ACTIVE
+        return if (restore(player, previousState)) {
+            previousStates.remove(player.uuid)
+            StopResult.STOPPED
+        } else {
+            StopResult.FAILED
+        }
     }
 
     fun restoreOnDisconnect(player: ServerPlayer) {
-        val previousState = previousStates.remove(player.uuid) ?: return
-        restore(player, previousState)
+        val previousStates = getSavedData(player.level().server) ?: return
+        val previousState = previousStates.get(player.uuid) ?: return
+        if (restore(player, previousState)) {
+            previousStates.remove(player.uuid)
+        }
     }
 
-    private fun restore(player: ServerPlayer, previousState: PreviousState) {
+    private fun restore(player: ServerPlayer, previousState: ModSpawnState): Boolean {
         val targetWorld = player.level().server.getWorld(previousState.world)
         val restoredLocation = if (targetWorld != null) {
             player.teleportTo(
@@ -101,24 +106,18 @@ object ModSpawnManager {
                 "Failed to fully restore modspawn return for ${player.scoreboardName}; " +
                         "world=${previousState.world} restoredLocation=$restoredLocation"
             )
-            return
+            return false
         }
 
         logInfo(
             "Restored modspawn return for ${player.scoreboardName} to " +
                     "${previousState.world} ${previousState.x} ${previousState.y} ${previousState.z}"
         )
+        return true
     }
 
-    private data class PreviousState(
-        val world: Identifier,
-        val x: Double,
-        val y: Double,
-        val z: Double,
-        val yRot: Float,
-        val xRot: Float,
-        val gameMode: GameType
-    )
+    private fun getSavedData(server: MinecraftServer): ModSpawnSavedData? =
+        server.getLevel(Level.OVERWORLD)?.dataStorage?.computeIfAbsent(ModSpawnSavedData.TYPE)
 
     enum class StartResult {
         STARTED,
@@ -128,6 +127,7 @@ object ModSpawnManager {
 
     enum class StopResult {
         STOPPED,
-        NOT_ACTIVE
+        NOT_ACTIVE,
+        FAILED
     }
 }

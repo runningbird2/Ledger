@@ -139,6 +139,9 @@ object RestrictedLedgerAccess {
         }
 
         allowedSubset.removeAll(deniedAllowedActions)
+        if (allowedSubset.isEmpty()) {
+            throw SimpleCommandExceptionType(Component.translatable("error.ledger.restricted.action")).create()
+        }
 
         return allowedSubset.mapTo(mutableSetOf()) { Negatable.allow(it) }
     }

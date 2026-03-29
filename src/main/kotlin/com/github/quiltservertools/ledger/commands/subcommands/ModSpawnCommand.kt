@@ -79,6 +79,11 @@ object ModSpawnCommand : BuildableCommand {
                                 source.sendFailure(Component.translatable("error.ledger.modspawn.inactive"))
                                 -1
                             }
+
+                            ModSpawnManager.StopResult.FAILED -> {
+                                source.sendFailure(Component.translatable("error.ledger.modspawn.failed"))
+                                -1
+                            }
                         }
                     }
             )
