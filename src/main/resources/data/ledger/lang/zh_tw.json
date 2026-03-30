@@ -44,6 +44,7 @@
   "error.ledger.command.no_results": "該搜尋沒有結果",
   "error.ledger.no_more_pages": "沒有更多頁面",
   "error.ledger.unknown_param": "無效引數 %s",
+  "error.ledger.param.disallowed": "The %s parameter is not available for this command",
   "error.ledger.no_preview": "沒有目前的預覽",
 
   "text.ledger.action.block-place": "放置",

@@ -24,6 +24,7 @@ object RestrictedLedgerAccess {
     const val SEARCH_PERMISSION = "ledger.commands.moderator.search"
     const val ROLLBACK_PERMISSION = "ledger.commands.moderator.rollback"
     const val MODSPAWN_PERMISSION = "ledger.commands.moderator.modspawn"
+    val DISALLOWED_PARAMS: Set<String> = setOf("before")
 
     private const val ORIGIN_LIMIT = 1000
     private const val ROLLBACK_PREVIEW_MAX_RANGE = 150

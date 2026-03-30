@@ -45,7 +45,10 @@ object SearchParamArgument {
         paramSuggesters["rolledback"] = Parameter(RollbackStatusParameter())
     }
 
-    fun argument(name: String): RequiredArgumentBuilder<CommandSourceStack, String> {
+    fun argument(
+        name: String,
+        disallowedParams: Set<String> = emptySet()
+    ): RequiredArgumentBuilder<CommandSourceStack, String> {
         return Commands.argument(name, StringArgumentType.greedyString())
             .suggests { context, builder ->
                 val input = builder.input
@@ -62,19 +65,19 @@ object SearchParamArgument {
                 }
                 if (lastColonIndex == -1) {
                     val offsetBuilder = builder.createOffset(lastSpaceIndex + 1)
-                    builder.add(suggestCriteria(offsetBuilder))
+                    builder.add(suggestCriteria(offsetBuilder, disallowedParams))
                 } else {
                     val spaceSplit = input.substring(0, lastColonIndex).split(" ").toTypedArray()
                     val criterion = spaceSplit[spaceSplit.size - 1]
                     val criteriaArg = input.substring(lastColonIndex + 1)
-                    return@suggests if (!paramSuggesters.containsKey(criterion)) {
+                    return@suggests if (!paramSuggesters.containsKey(criterion) || criterion in disallowedParams) {
                         builder.buildFuture()
                     } else {
                         val suggester = paramSuggesters[criterion]
                         val remaining = suggester!!.getRemaining(criteriaArg)
                         if (remaining > 0) {
                             val offsetBuilder = builder.createOffset(input.length - remaining + 1)
-                            suggestCriteria(offsetBuilder).buildFuture()
+                            suggestCriteria(offsetBuilder, disallowedParams).buildFuture()
                         } else {
                             val offsetBuilder = builder.createOffset(lastColonIndex + 1)
                             suggester.listSuggestions(context, offsetBuilder)
@@ -86,11 +89,20 @@ object SearchParamArgument {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun get(input: String, source: CommandSourceStack): ActionSearchParams {
+    fun get(
+        input: String,
+        source: CommandSourceStack,
+        disallowedParams: Set<String> = emptySet()
+    ): ActionSearchParams {
         val reader = StringReader(input)
         val result = HashMultimap.create<String, Any?>()
         while (reader.canRead()) {
             val propertyName = reader.readStringUntil(':').trim(' ')
+            if (propertyName in disallowedParams) {
+                throw SimpleCommandExceptionType(
+                    Component.translatable("error.ledger.param.disallowed", propertyName)
+                ).create()
+            }
             val parameter = paramSuggesters[propertyName]
                 ?: throw SimpleCommandExceptionType(LiteralMessage("Unknown property value: $propertyName"))
                     .create()
@@ -193,15 +205,22 @@ object SearchParamArgument {
         return builder.build()
     }
 
-    fun get(context: CommandContext<CommandSourceStack>, name: String): ActionSearchParams {
+    fun get(
+        context: CommandContext<CommandSourceStack>,
+        name: String,
+        disallowedParams: Set<String> = emptySet()
+    ): ActionSearchParams {
         val input = StringArgumentType.getString(context, name)
-        return get(input, context.source)
+        return get(input, context.source, disallowedParams)
     }
 
-    private fun suggestCriteria(builder: SuggestionsBuilder): SuggestionsBuilder {
+    private fun suggestCriteria(
+        builder: SuggestionsBuilder,
+        disallowedParams: Set<String> = emptySet()
+    ): SuggestionsBuilder {
         val input = builder.remaining.lowercase()
         for (param in paramSuggesters.keys) {
-            if (param.startsWith(input)) {
+            if (param !in disallowedParams && param.startsWith(input)) {
                 builder.suggest("$param:", Component.translatable("text.ledger.parameter.$param.description"))
             }
         }

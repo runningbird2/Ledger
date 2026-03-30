@@ -44,6 +44,7 @@
     "error.ledger.command.no_results": "Niama rezuĺtataŭ dlia hetaha pošuku",
     "error.ledger.no_more_pages": "Boĺš niama staronak",
     "error.ledger.unknown_param": "Nieviadomy paramietr %s",
+    "error.ledger.param.disallowed": "The %s parameter is not available for this command",
     "error.ledger.no_preview": "Niama ciakučaha papiaredniaha prahliadu",
     "error.ledger.unspecific.range": "Kali laska, ukažycie dyjapazon.",
     "error.ledger.unspecific.range_to_big": "Maksimaĺny dyjapazon skladaje %s.",

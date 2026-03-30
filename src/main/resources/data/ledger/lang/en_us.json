@@ -44,6 +44,7 @@
     "error.ledger.command.no_results": "No results for that search",
     "error.ledger.no_more_pages": "No more pages",
     "error.ledger.unknown_param": "Unknown parameter %s",
+    "error.ledger.param.disallowed": "The %s parameter is not available for this command",
     "error.ledger.no_preview": "No current preview",
     "error.ledger.unspecific.range": "Please specify a range.",
     "error.ledger.unspecific.range_to_big": "The maximum range is %s. Use @global to confirm running on the entire server!",

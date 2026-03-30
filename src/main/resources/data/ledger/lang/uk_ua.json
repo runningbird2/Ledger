@@ -44,6 +44,7 @@
     "error.ledger.command.no_results": "Немає результатів для цього пошуку",
     "error.ledger.no_more_pages": "Більше немає сторінок",
     "error.ledger.unknown_param": "Невідомий параметр %s",
+    "error.ledger.param.disallowed": "The %s parameter is not available for this command",
     "error.ledger.no_preview": "Немає поточного попереднього перегляду",
     "error.ledger.unspecific.range": "Будь ласка, вкажіть діапазон.",
     "error.ledger.unspecific.range_to_big": "Максимальний діапазон становить %s.",

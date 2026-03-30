@@ -42,6 +42,7 @@
   "error.ledger.command.no_results": "没有查询到任何结果",
   "error.ledger.no_more_pages": "没有更多页了",
   "error.ledger.unknown_param": "非法参数--> %s",
+  "error.ledger.param.disallowed": "The %s parameter is not available for this command",
   "error.ledger.no_preview": "没有可预览的结果,预览失败",
 
   "text.ledger.action.block-place": "放置",

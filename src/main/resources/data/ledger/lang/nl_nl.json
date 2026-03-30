@@ -39,6 +39,7 @@
   "error.ledger.command.no_results": "Geen resultaten voor die zoekopdracht",
   "error.ledger.no_more_pages": "Geen pagina's meer",
   "error.ledger.unknown_param": "Onbekende parameter %s",
+  "error.ledger.param.disallowed": "The %s parameter is not available for this command",
   "error.ledger.no_preview": "Geen huidige preview",
 
   "text.ledger.action.block-place": "geplaatst",

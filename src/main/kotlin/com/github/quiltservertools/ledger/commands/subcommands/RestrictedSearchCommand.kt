@@ -40,12 +40,16 @@ object RestrictedSearchCommand : BuildableCommand {
                     )
             )
             .then(
-                SearchParamArgument.argument(CommandConsts.PARAMS)
+                SearchParamArgument.argument(CommandConsts.PARAMS, RestrictedLedgerAccess.DISALLOWED_PARAMS)
                     .executes {
                         val restrictedParams =
                             RestrictedLedgerAccess.restrictSearchParams(
                                 it.source,
-                                SearchParamArgument.get(it, CommandConsts.PARAMS)
+                                SearchParamArgument.get(
+                                    it,
+                                    CommandConsts.PARAMS,
+                                    RestrictedLedgerAccess.DISALLOWED_PARAMS
+                                )
                             )
                         SearchCommand.search(
                             it,

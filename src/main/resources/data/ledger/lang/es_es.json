@@ -44,6 +44,7 @@
     "error.ledger.command.no_results": "Sin resultados de búsqueda",
     "error.ledger.no_more_pages": "No más páginas",
     "error.ledger.unknown_param": "Parámetro desconocido %s",
+    "error.ledger.param.disallowed": "The %s parameter is not available for this command",
     "error.ledger.no_preview": "Sin vista previa",
 
     "text.ledger.action.block-place": "colocado",

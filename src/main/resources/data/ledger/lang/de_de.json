@@ -43,6 +43,7 @@
     "error.ledger.command.no_results": "Keine Einträge für diese Suche",
     "error.ledger.no_more_pages": "Keine weiteren Seiten",
     "error.ledger.unknown_param": "Unbekannte Angaben %s",
+    "error.ledger.param.disallowed": "The %s parameter is not available for this command",
     "error.ledger.no_preview": "Keine laufende Vorschau",
 
     "text.ledger.action.block-place": "platziert",

@@ -43,6 +43,7 @@
   "error.ledger.command.no_results": "Нет результатов для этого поиска",
   "error.ledger.no_more_pages": "Больше нет страниц",
   "error.ledger.unknown_param": "Неизвестный параметр %s",
+  "error.ledger.param.disallowed": "The %s parameter is not available for this command",
   "error.ledger.no_preview": "Нет текущего предварительного просмотра",
 
   "text.ledger.action.block-place": "разместил",

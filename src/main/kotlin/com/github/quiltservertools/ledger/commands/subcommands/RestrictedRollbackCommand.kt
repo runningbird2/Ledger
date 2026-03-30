@@ -42,13 +42,17 @@ object RestrictedRollbackCommand : BuildableCommand {
                             .executes { PreviewCommand.cancel(it, Preview.Type.ROLLBACK) }
                     )
                     .then(
-                        SearchParamArgument.argument(CommandConsts.PARAMS)
+                        SearchParamArgument.argument(CommandConsts.PARAMS, RestrictedLedgerAccess.DISALLOWED_PARAMS)
                             .executes {
                                 previewRollback(
                                     it,
                                     RestrictedLedgerAccess.restrictRollbackParams(
                                         it.source,
-                                        SearchParamArgument.get(it, CommandConsts.PARAMS)
+                                        SearchParamArgument.get(
+                                            it,
+                                            CommandConsts.PARAMS,
+                                            RestrictedLedgerAccess.DISALLOWED_PARAMS
+                                        )
                                     )
                                 )
                             }
@@ -59,13 +63,17 @@ object RestrictedRollbackCommand : BuildableCommand {
                     .executes { undoRollback(it) }
             )
             .then(
-                SearchParamArgument.argument(CommandConsts.PARAMS)
+                SearchParamArgument.argument(CommandConsts.PARAMS, RestrictedLedgerAccess.DISALLOWED_PARAMS)
                     .executes {
                         rollbackRestricted(
                             it,
                             RestrictedLedgerAccess.restrictRollbackParams(
                                 it.source,
-                                SearchParamArgument.get(it, CommandConsts.PARAMS)
+                                SearchParamArgument.get(
+                                    it,
+                                    CommandConsts.PARAMS,
+                                    RestrictedLedgerAccess.DISALLOWED_PARAMS
+                                )
                             )
                         )
                     }
