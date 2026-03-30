@@ -1,6 +1,7 @@
 package com.github.quiltservertools.ledger.commands.subcommands
 
 import com.github.quiltservertools.ledger.Ledger
+import com.github.quiltservertools.ledger.actions.ActionType
 import com.github.quiltservertools.ledger.actionutils.ActionSearchParams
 import com.github.quiltservertools.ledger.commands.BuildableCommand
 import com.github.quiltservertools.ledger.commands.CommandConsts
@@ -29,7 +30,8 @@ object SearchCommand : BuildableCommand {
     fun search(
         context: Context,
         params: ActionSearchParams,
-        pageCommandFactory: (Int) -> String = { "/lg pg $it" }
+        pageCommandFactory: (Int) -> String = { "/lg pg $it" },
+        actionTransformer: (List<ActionType>) -> List<ActionType> = { it }
     ): Int {
         val source = context.source
 
@@ -38,15 +40,16 @@ object SearchCommand : BuildableCommand {
 
             MessageUtils.warnBusy(source)
             val results = DatabaseManager.searchActions(params, 1)
+            val transformedResults = results.copy(actions = actionTransformer(results.actions))
 
-            if (results.actions.isEmpty()) {
+            if (transformedResults.actions.isEmpty()) {
                 source.sendFailure(Component.translatable("error.ledger.command.no_results"))
                 return@launch
             }
 
             MessageUtils.sendSearchResults(
                 source,
-                results,
+                transformedResults,
                 Component.translatable(
                     "text.ledger.header.search"
                 ).setStyle(TextColorPallet.primary),

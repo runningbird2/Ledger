@@ -1,6 +1,7 @@
 package com.github.quiltservertools.ledger.commands.subcommands
 
 import com.github.quiltservertools.ledger.Ledger
+import com.github.quiltservertools.ledger.actions.ActionType
 import com.github.quiltservertools.ledger.actionutils.ActionSearchParams
 import com.github.quiltservertools.ledger.actionutils.Preview
 import com.github.quiltservertools.ledger.commands.BuildableCommand
@@ -50,13 +51,18 @@ object PreviewCommand : BuildableCommand {
             .build()
     }
 
-    fun preview(context: Context, params: ActionSearchParams, type: Preview.Type): Int {
+    fun preview(
+        context: Context,
+        params: ActionSearchParams,
+        type: Preview.Type,
+        actionTransformer: (List<ActionType>) -> List<ActionType> = { it }
+    ): Int {
         val source = context.source
         val player = source.playerOrException
         params.ensureSpecific()
         Ledger.launch {
             MessageUtils.warnBusy(source)
-            val actions = DatabaseManager.previewActions(params, type)
+            val actions = actionTransformer(DatabaseManager.previewActions(params, type))
 
             if (actions.isEmpty()) {
                 source.sendFailure(Component.translatable("error.ledger.command.no_results"))

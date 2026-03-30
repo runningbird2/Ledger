@@ -30,7 +30,12 @@ object RestrictedRollbackCommand : BuildableCommand {
                                         it.source,
                                         SearchParamArgument.get(it, CommandConsts.PARAMS)
                                     )
-                                PreviewCommand.preview(it, restrictedParams, Preview.Type.ROLLBACK)
+                                PreviewCommand.preview(
+                                    it,
+                                    restrictedParams,
+                                    Preview.Type.ROLLBACK,
+                                    RestrictedLedgerAccess::sanitizeRestrictedActions
+                                )
                             }
                     )
             )
@@ -42,7 +47,11 @@ object RestrictedRollbackCommand : BuildableCommand {
                                 it.source,
                                 SearchParamArgument.get(it, CommandConsts.PARAMS)
                             )
-                        RollbackCommand.rollback(it, restrictedParams)
+                        RollbackCommand.rollback(
+                            it,
+                            restrictedParams,
+                            RestrictedLedgerAccess::sanitizeRestrictedActions
+                        )
                     }
             )
             .build()

@@ -1,10 +1,18 @@
 package com.github.quiltservertools.ledger.utility
 
+import com.github.quiltservertools.ledger.actions.ActionType
+import com.github.quiltservertools.ledger.actions.BlockChangeActionType
 import com.github.quiltservertools.ledger.actionutils.ActionSearchParams
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.core.BlockPos
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.Container
+import net.minecraft.world.WorldlyContainerHolder
+import net.minecraft.world.level.block.EntityBlock
 import net.minecraft.world.level.levelgen.structure.BoundingBox
 import java.time.Duration
 import java.time.Instant
@@ -69,6 +77,13 @@ object RestrictedLedgerAccess {
         }
         return player
     }
+
+    fun sanitizeRestrictedActions(actions: List<ActionType>): List<ActionType> =
+        actions.onEach { action ->
+            if (action is BlockChangeActionType && shouldStripBlockEntityData(action)) {
+                action.extraData = null
+            }
+        }
 
     private fun copyWithRestrictions(
         params: ActionSearchParams,
@@ -144,5 +159,19 @@ object RestrictedLedgerAccess {
         }
 
         return allowedSubset.mapTo(mutableSetOf()) { Negatable.allow(it) }
+    }
+
+    private fun shouldStripBlockEntityData(action: BlockChangeActionType): Boolean =
+        isInventoryBlock(action.objectIdentifier) || isInventoryBlock(action.oldObjectIdentifier)
+
+    private fun isInventoryBlock(identifier: Identifier): Boolean {
+        val block = BuiltInRegistries.BLOCK.getOptional(identifier).orElse(null) ?: return false
+        if (block is WorldlyContainerHolder) {
+            return true
+        }
+
+        val entityBlock = block as? EntityBlock ?: return false
+        val blockEntity = entityBlock.newBlockEntity(BlockPos.ZERO, block.defaultBlockState()) ?: return false
+        return blockEntity is Container
     }
 }

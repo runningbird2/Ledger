@@ -1,6 +1,7 @@
 package com.github.quiltservertools.ledger.commands.subcommands
 
 import com.github.quiltservertools.ledger.Ledger
+import com.github.quiltservertools.ledger.actions.ActionType
 import com.github.quiltservertools.ledger.actionutils.ActionSearchParams
 import com.github.quiltservertools.ledger.commands.BuildableCommand
 import com.github.quiltservertools.ledger.commands.CommandConsts
@@ -28,12 +29,16 @@ object RollbackCommand : BuildableCommand {
             .build()
     }
 
-    fun rollback(context: Context, params: ActionSearchParams): Int {
+    fun rollback(
+        context: Context,
+        params: ActionSearchParams,
+        actionTransformer: (List<ActionType>) -> List<ActionType> = { it }
+    ): Int {
         val source = context.source
         params.ensureSpecific()
         Ledger.launch {
             MessageUtils.warnBusy(source)
-            val actions = DatabaseManager.selectRollback(params)
+            val actions = actionTransformer(DatabaseManager.selectRollback(params))
 
             if (actions.isEmpty()) {
                 source.sendFailure(Component.translatable("error.ledger.command.no_results"))

@@ -22,17 +22,18 @@ class BlockPlaceActionType : BlockChangeActionType() {
 
     override fun restore(server: MinecraftServer): Boolean {
         val world = server.getWorld(world)
+        val blockEntityData = extraData
 
         if (world != null) {
             val state = newBlockState(world.holderLookup(Registries.BLOCK))
             world.setBlockAndUpdate(pos, state)
-            if (state.hasBlockEntity()) {
+            if (state.hasBlockEntity() && !blockEntityData.isNullOrBlank()) {
                 ProblemReporter.ScopedCollector({ "ledger:restore:block-place@$pos" }, LOGGER).use {
                     world.getBlockEntity(pos)?.loadWithComponents(
                         TagValueInput.create(
                             it,
                             server.registryAccess(),
-                            TagParser.parseCompoundFully(extraData!!)
+                            TagParser.parseCompoundFully(blockEntityData)
                         )
                     )
                 }

@@ -47,7 +47,12 @@ object RestrictedSearchCommand : BuildableCommand {
                                 it.source,
                                 SearchParamArgument.get(it, CommandConsts.PARAMS)
                             )
-                        SearchCommand.search(it, restrictedParams) { page -> "/search page $page" }
+                        SearchCommand.search(
+                            it,
+                            restrictedParams,
+                            { page -> "/search page $page" },
+                            RestrictedLedgerAccess::sanitizeRestrictedActions
+                        )
                     }
             )
             .build()
@@ -67,14 +72,17 @@ object RestrictedSearchCommand : BuildableCommand {
         Ledger.launch {
             MessageUtils.warnBusy(source)
             val results = DatabaseManager.searchActions(restrictedParams, page)
-            if (results.actions.isEmpty() || page > results.pages) {
+            val transformedResults = results.copy(
+                actions = RestrictedLedgerAccess.sanitizeRestrictedActions(results.actions)
+            )
+            if (transformedResults.actions.isEmpty() || transformedResults.page > transformedResults.pages) {
                 source.sendFailure(Component.translatable("error.ledger.no_more_pages"))
                 return@launch
             }
 
             MessageUtils.sendSearchResults(
                 source,
-                results,
+                transformedResults,
                 Component.translatable("text.ledger.header.search").setStyle(TextColorPallet.primary)
             ) { nextPage ->
                 "/search page $nextPage"
