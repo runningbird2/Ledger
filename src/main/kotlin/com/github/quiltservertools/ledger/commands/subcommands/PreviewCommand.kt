@@ -55,7 +55,8 @@ object PreviewCommand : BuildableCommand {
         context: Context,
         params: ActionSearchParams,
         type: Preview.Type,
-        actionTransformer: (List<ActionType>) -> List<ActionType> = { it }
+        actionTransformer: (List<ActionType>) -> List<ActionType> = { it },
+        applyHandler: (Context, ActionSearchParams) -> Int = defaultApplyHandler(type)
     ): Int {
         val source = context.source
         val player = source.playerOrException
@@ -70,36 +71,49 @@ object PreviewCommand : BuildableCommand {
             }
 
             Ledger.previewCache[player.uuid]?.cancel(player)
-            Ledger.previewCache[player.uuid] = Preview(params, actions, player, type)
+            Ledger.previewCache[player.uuid] = Preview(params, actions, player, type) {
+                applyHandler(it, params)
+            }
         }
         return 1
     }
 
-    private fun apply(context: Context): Int {
+    fun apply(context: Context, requiredType: Preview.Type? = null): Int {
         val uuid = context.source.playerOrException.uuid
+        val preview = Ledger.previewCache[uuid]
 
-        if (Ledger.previewCache.containsKey(uuid)) {
-            Ledger.previewCache[uuid]?.apply(context)
-            Ledger.previewCache.remove(uuid)
-        } else {
+        if (preview == null || (requiredType != null && !preview.isType(requiredType))) {
             context.source.sendFailure(Component.translatable("error.ledger.no_preview"))
             return -1
         }
 
+        preview.apply(context)
+        Ledger.previewCache.remove(uuid)
         return 1
     }
 
-    private fun cancel(context: Context): Int {
+    fun cancel(context: Context, requiredType: Preview.Type? = null): Int {
         val uuid = context.source.playerOrException.uuid
+        val preview = Ledger.previewCache[uuid]
 
-        if (Ledger.previewCache.containsKey(uuid)) {
-            Ledger.previewCache[uuid]?.cancel(context.source.playerOrException)
-            Ledger.previewCache.remove(uuid)
-        } else {
+        if (preview == null || (requiredType != null && !preview.isType(requiredType))) {
             context.source.sendFailure(Component.translatable("error.ledger.no_preview"))
             return -1
         }
 
+        preview.cancel(context.source.playerOrException)
+        Ledger.previewCache.remove(uuid)
         return 1
     }
+
+    private fun defaultApplyHandler(type: Preview.Type): (Context, ActionSearchParams) -> Int =
+        when (type) {
+            Preview.Type.ROLLBACK -> { previewContext, previewParams ->
+                RollbackCommand.rollback(previewContext, previewParams)
+            }
+
+            Preview.Type.RESTORE -> { previewContext, previewParams ->
+                RestoreCommand.restore(previewContext, previewParams)
+            }
+        }
 }

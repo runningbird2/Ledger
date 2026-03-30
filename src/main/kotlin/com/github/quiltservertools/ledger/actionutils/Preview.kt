@@ -1,8 +1,6 @@
 package com.github.quiltservertools.ledger.actionutils
 
 import com.github.quiltservertools.ledger.actions.ActionType
-import com.github.quiltservertools.ledger.commands.subcommands.RestoreCommand
-import com.github.quiltservertools.ledger.commands.subcommands.RollbackCommand
 import com.github.quiltservertools.ledger.mixin.preview.ServerEntityAccessor
 import com.github.quiltservertools.ledger.utility.Context
 import com.github.quiltservertools.ledger.utility.TextColorPallet
@@ -17,7 +15,8 @@ class Preview(
     private val params: ActionSearchParams,
     actions: List<ActionType>,
     player: ServerPlayer,
-    private val type: Type
+    private val type: Type,
+    private val applyHandler: (Context) -> Int
 ) {
     val positions = mutableSetOf<BlockPos>()
 
@@ -75,11 +74,10 @@ class Preview(
 
     fun apply(context: Context) {
         cleanup(context.source.playerOrException)
-        when (type) {
-            Type.ROLLBACK -> RollbackCommand.rollback(context, params)
-            Type.RESTORE -> RestoreCommand.restore(context, params)
-        }
+        applyHandler(context)
     }
+
+    fun isType(expectedType: Type): Boolean = type == expectedType
 
     enum class Type {
         ROLLBACK,

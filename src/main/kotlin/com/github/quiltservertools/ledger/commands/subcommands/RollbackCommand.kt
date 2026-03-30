@@ -32,7 +32,8 @@ object RollbackCommand : BuildableCommand {
     fun rollback(
         context: Context,
         params: ActionSearchParams,
-        actionTransformer: (List<ActionType>) -> List<ActionType> = { it }
+        actionTransformer: (List<ActionType>) -> List<ActionType> = { it },
+        onSuccess: (Context, Set<Int>, List<ActionType>) -> Unit = { _, _, _ -> }
     ): Int {
         val source = context.source
         params.ensureSpecific()
@@ -58,15 +59,20 @@ object RollbackCommand : BuildableCommand {
             context.source.level.launchMain {
                 val fails = HashMap<String, Int>()
                 val actionIds = HashSet<Int>()
+                val succeededActions = mutableListOf<ActionType>()
                 for (action in actions) {
                     if (!action.rollback(context.source.server)) {
                         fails[action.identifier] = fails.getOrPut(action.identifier) { 0 } + 1
                     } else {
                         actionIds.add(action.id)
+                        succeededActions.add(action)
                     }
                 }
-                Ledger.launch {
-                    DatabaseManager.rollbackActions(actionIds)
+                if (actionIds.isNotEmpty()) {
+                    Ledger.launch {
+                        DatabaseManager.rollbackActions(actionIds)
+                    }.join()
+                    onSuccess(context, actionIds, succeededActions)
                 }
 
                 for (entry in fails.entries) {

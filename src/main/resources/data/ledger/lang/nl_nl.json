@@ -59,5 +59,8 @@
   "error.ledger.restricted.range_global": "You must specify a local range for this command; @global is not allowed",
   "error.ledger.restricted.range_too_big": "The maximum range for this command is %s",
   "error.ledger.restricted.source": "You must target exactly one player or one @source with this command",
-  "error.ledger.restricted.action": "Only block-break and block-place actions can be queried with this command"
+  "error.ledger.restricted.action": "Only block-break and block-place actions can be queried with this command",
+  "text.ledger.rollback.undo.start": "Undoing your last rollback of %s actions",
+  "text.ledger.rollback.undo.finish": "Rollback undo complete for %s actions",
+  "error.ledger.rollback.undo.none": "You have no rollback history to undo"
 }
