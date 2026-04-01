@@ -5,7 +5,8 @@ import com.github.quiltservertools.ledger.commands.CommandConsts
 import com.github.quiltservertools.ledger.utility.Context
 import com.github.quiltservertools.ledger.utility.InspectMode
 import com.github.quiltservertools.ledger.utility.LiteralNode
-import com.github.quiltservertools.ledger.utility.inspectBlock
+import com.github.quiltservertools.ledger.utility.RestrictedLedgerAccess
+import com.github.quiltservertools.ledger.utility.inspectBlockRestricted
 import com.github.quiltservertools.ledger.utility.inspectOff
 import com.github.quiltservertools.ledger.utility.inspectOn
 import com.github.quiltservertools.ledger.utility.isInspecting
@@ -15,14 +16,21 @@ import net.minecraft.commands.Commands.literal
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument
 import net.minecraft.core.BlockPos
 
-object InspectCommand : BuildableCommand {
+object RestrictedInspectCommand : BuildableCommand {
     override fun build(): LiteralNode =
         literal("inspect")
-            .requires(Permissions.require("ledger.commands.inspect", CommandConsts.PERMISSION_LEVEL))
+            .requires {
+                it.entity is net.minecraft.server.level.ServerPlayer &&
+                        Permissions.check(
+                            it.playerOrException,
+                            RestrictedLedgerAccess.INSPECT_PERMISSION,
+                            CommandConsts.PERMISSION_LEVEL
+                        )
+            }
             .executes { toggleInspect(it) }
             .then(
                 literal("on")
-                    .executes { it.source.playerOrException.inspectOn() }
+                    .executes { it.source.playerOrException.inspectOn(InspectMode.RESTRICTED) }
             )
             .then(
                 literal("off")
@@ -35,20 +43,17 @@ object InspectCommand : BuildableCommand {
             .build()
 
     private fun toggleInspect(context: Context): Int {
-        val source = context.source
-        val player = source.playerOrException
+        val player = context.source.playerOrException
 
-        return if (player.isInspecting(InspectMode.FULL)) {
+        return if (player.isInspecting(InspectMode.RESTRICTED)) {
             player.inspectOff()
         } else {
-            player.inspectOn(InspectMode.FULL)
+            player.inspectOn(InspectMode.RESTRICTED)
         }
     }
 
     private fun inspectBlock(context: Context, pos: BlockPos): Int {
-        val source = context.source
-
-        source.inspectBlock(pos)
+        context.source.inspectBlockRestricted(pos)
         return 1
     }
 }

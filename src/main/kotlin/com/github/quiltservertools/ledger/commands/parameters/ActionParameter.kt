@@ -10,12 +10,14 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.SharedSuggestionProvider
 import java.util.concurrent.CompletableFuture
 
-class ActionParameter : SimpleParameter<String>() {
+class ActionParameter(
+    private val allowedTypes: Set<String>? = null
+) : SimpleParameter<String>() {
     override fun getSuggestions(
         context: CommandContext<CommandSourceStack>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
-        val types = ActionRegistry.getTypes()
+        val types = allowedTypes ?: ActionRegistry.getTypes()
         // Need to check equality to catch null
         return SharedSuggestionProvider.suggest(
             types,

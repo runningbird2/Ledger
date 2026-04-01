@@ -53,7 +53,8 @@ object SearchCommand : BuildableCommand {
                 Component.translatable(
                     "text.ledger.header.search"
                 ).setStyle(TextColorPallet.primary),
-                pageCommandFactory
+                pageCommandFactory = pageCommandFactory,
+                actionTransformer = actionTransformer
             )
         }
 

@@ -42,7 +42,11 @@ object RestrictedRollbackCommand : BuildableCommand {
                             .executes { PreviewCommand.cancel(it, Preview.Type.ROLLBACK) }
                     )
                     .then(
-                        SearchParamArgument.argument(CommandConsts.PARAMS, RestrictedLedgerAccess.DISALLOWED_PARAMS)
+                        SearchParamArgument.argument(
+                            CommandConsts.PARAMS,
+                            RestrictedLedgerAccess.DISALLOWED_PARAMS,
+                            RestrictedLedgerAccess.ALLOWED_ACTIONS
+                        )
                             .executes {
                                 previewRollback(
                                     it,
@@ -63,7 +67,11 @@ object RestrictedRollbackCommand : BuildableCommand {
                     .executes { undoRollback(it) }
             )
             .then(
-                SearchParamArgument.argument(CommandConsts.PARAMS, RestrictedLedgerAccess.DISALLOWED_PARAMS)
+                SearchParamArgument.argument(
+                    CommandConsts.PARAMS,
+                    RestrictedLedgerAccess.DISALLOWED_PARAMS,
+                    RestrictedLedgerAccess.ALLOWED_ACTIONS
+                )
                     .executes {
                         rollbackRestricted(
                             it,

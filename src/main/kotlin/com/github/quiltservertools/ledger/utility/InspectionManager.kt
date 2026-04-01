@@ -1,9 +1,11 @@
 package com.github.quiltservertools.ledger.utility
 
 import com.github.quiltservertools.ledger.Ledger
+import com.github.quiltservertools.ledger.actions.ActionType
 import com.github.quiltservertools.ledger.actionutils.ActionSearchParams
 import com.github.quiltservertools.ledger.actionutils.SearchResults
 import com.github.quiltservertools.ledger.database.DatabaseManager
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import kotlinx.coroutines.launch
 import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandSourceStack
@@ -22,12 +24,20 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf
 import net.minecraft.world.level.levelgen.structure.BoundingBox
 import java.util.*
 
-private val inspectingUsers = HashSet<UUID>()
+enum class InspectMode {
+    FULL,
+    RESTRICTED
+}
 
-fun Player.isInspecting() = inspectingUsers.contains(this.uuid)
+private val inspectingUsers = HashMap<UUID, InspectMode>()
 
-fun Player.inspectOn(): Int {
-    inspectingUsers.add(this.uuid)
+fun Player.inspectMode(): InspectMode? = inspectingUsers[this.uuid]
+
+fun Player.isInspecting(mode: InspectMode? = null): Boolean =
+    if (mode == null) inspectMode() != null else inspectMode() == mode
+
+fun Player.inspectOn(mode: InspectMode = InspectMode.FULL): Int {
+    inspectingUsers[this.uuid] = mode
     this.displayClientMessage(
         Component.translatable(
             "text.ledger.inspect.toggle",
@@ -53,49 +63,84 @@ fun Player.inspectOff(): Int {
 }
 
 fun CommandSourceStack.inspectBlock(pos: BlockPos) {
+    val params = buildInspectParams(this, pos)
+    inspectBlock(
+        pos,
+        params,
+        actionTransformer = { it }
+    )
+}
+
+fun CommandSourceStack.inspectBlockRestricted(pos: BlockPos) {
+    val restrictedParams = try {
+        RestrictedLedgerAccess.restrictInspectParams(this, buildInspectParams(this, pos))
+    } catch (exception: CommandSyntaxException) {
+        sendFailure(exception.toComponent())
+        return
+    }
+
+    inspectBlock(
+        pos,
+        restrictedParams,
+        pageCommandFactory = { page -> "/search page $page" },
+        actionTransformer = RestrictedLedgerAccess::sanitizeRestrictedActions
+    )
+}
+
+private fun CommandSourceStack.inspectBlock(
+    pos: BlockPos,
+    params: ActionSearchParams,
+    pageCommandFactory: (Int) -> String = { "/lg pg $it" },
+    actionTransformer: (List<ActionType>) -> List<ActionType>
+) {
     val source = this
 
     Ledger.launch {
-        var area = BoundingBox(pos)
-
-        val state = source.level.getBlockState(pos)
-        if (state.block is ChestBlock) {
-            getOtherChestSide(state, pos)?.let {
-                area = BoundingBox.fromCorners(pos, it)
-            }
-        } else if (state.block is DoorBlock) {
-            getOtherDoorHalf(state, pos).let {
-                area = BoundingBox.fromCorners(pos, it)
-            }
-        } else if (state.block is BedBlock) {
-            getOtherBedPart(state, pos).let {
-                area = BoundingBox.fromCorners(pos, it)
-            }
-        }
-
-        val params = ActionSearchParams.build {
-            bounds = area
-            worlds = mutableSetOf(Negatable.allow(source.level.dimension().identifier()))
-        }
-
         Ledger.searchCache[source.textName] = params
 
         MessageUtils.warnBusy(source)
         val results = DatabaseManager.searchActions(params, 1)
+        val transformedResults = results.copy(actions = actionTransformer(results.actions))
 
-        if (results.actions.isEmpty()) {
+        if (transformedResults.actions.isEmpty()) {
             source.sendFailure(Component.translatable("error.ledger.command.no_results"))
             return@launch
         }
 
         MessageUtils.sendSearchResults(
             source,
-            results,
+            transformedResults,
             Component.translatable(
                 "text.ledger.header.search.pos",
                 "${pos.x} ${pos.y} ${pos.z}".literal()
-            ).setStyle(TextColorPallet.primary)
+            ).setStyle(TextColorPallet.primary),
+            pageCommandFactory,
+            actionTransformer
         )
+    }
+}
+
+private fun buildInspectParams(source: CommandSourceStack, pos: BlockPos): ActionSearchParams {
+    var area = BoundingBox(pos)
+
+    val state = source.level.getBlockState(pos)
+    if (state.block is ChestBlock) {
+        getOtherChestSide(state, pos)?.let {
+            area = BoundingBox.fromCorners(pos, it)
+        }
+    } else if (state.block is DoorBlock) {
+        getOtherDoorHalf(state, pos).let {
+            area = BoundingBox.fromCorners(pos, it)
+        }
+    } else if (state.block is BedBlock) {
+        getOtherBedPart(state, pos).let {
+            area = BoundingBox.fromCorners(pos, it)
+        }
+    }
+
+    return ActionSearchParams.build {
+        bounds = area
+        worlds = mutableSetOf(Negatable.allow(source.level.dimension().identifier()))
     }
 }
 
@@ -136,11 +181,18 @@ private fun getOtherBedPart(state: BlockState, pos: BlockPos): BlockPos {
 
 suspend fun ServerPlayer.getInspectResults(pos: BlockPos): SearchResults {
     val source = this.createCommandSourceStack()
-    val params = ActionSearchParams.build {
-        bounds = BoundingBox(pos)
-    }
+    val params = buildInspectParams(source, pos)
 
     Ledger.searchCache[source.textName] = params
     MessageUtils.warnBusy(source)
     return DatabaseManager.searchActions(params, 1)
+}
+
+private fun CommandSyntaxException.toComponent(): Component {
+    val rawMessage = this.rawMessage
+    return if (rawMessage is Component) {
+        rawMessage
+    } else {
+        Component.literal(rawMessage.string)
+    }
 }

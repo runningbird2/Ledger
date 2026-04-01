@@ -9,8 +9,11 @@ import com.github.quiltservertools.ledger.callbacks.ItemPickUpCallback
 import com.github.quiltservertools.ledger.database.ActionQueueService
 import com.github.quiltservertools.ledger.database.DatabaseManager
 import com.github.quiltservertools.ledger.network.Networking.disableNetworking
+import com.github.quiltservertools.ledger.utility.InspectMode
 import com.github.quiltservertools.ledger.utility.ModSpawnManager
 import com.github.quiltservertools.ledger.utility.inspectBlock
+import com.github.quiltservertools.ledger.utility.inspectBlockRestricted
+import com.github.quiltservertools.ledger.utility.inspectMode
 import com.github.quiltservertools.ledger.utility.isInspecting
 import kotlinx.coroutines.launch
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback
@@ -59,7 +62,11 @@ private fun onUseBlock(
     blockHitResult: BlockHitResult
 ): InteractionResult {
     if (player is ServerPlayer && player.isInspecting() && hand == InteractionHand.MAIN_HAND) {
-        player.createCommandSourceStack().inspectBlock(blockHitResult.blockPos.relative(blockHitResult.direction))
+        when (player.inspectMode()) {
+            InspectMode.RESTRICTED -> player.createCommandSourceStack()
+                .inspectBlockRestricted(blockHitResult.blockPos.relative(blockHitResult.direction))
+            else -> player.createCommandSourceStack().inspectBlock(blockHitResult.blockPos.relative(blockHitResult.direction))
+        }
         return InteractionResult.SUCCESS
     }
     return InteractionResult.PASS
@@ -73,7 +80,10 @@ private fun onBlockAttack(
     direction: Direction
 ): InteractionResult {
     if (player is ServerPlayer && player.isInspecting()) {
-        player.createCommandSourceStack().inspectBlock(pos)
+        when (player.inspectMode()) {
+            InspectMode.RESTRICTED -> player.createCommandSourceStack().inspectBlockRestricted(pos)
+            else -> player.createCommandSourceStack().inspectBlock(pos)
+        }
         return InteractionResult.SUCCESS
     }
     return InteractionResult.PASS

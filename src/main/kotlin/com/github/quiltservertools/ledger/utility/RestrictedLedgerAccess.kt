@@ -23,15 +23,17 @@ import kotlin.math.min
 object RestrictedLedgerAccess {
     const val SEARCH_PERMISSION = "ledger.commands.moderator.search"
     const val ROLLBACK_PERMISSION = "ledger.commands.moderator.rollback"
+    const val INSPECT_PERMISSION = "ledger.commands.moderator.inspect"
     const val MODSPAWN_PERMISSION = "ledger.commands.moderator.modspawn"
-    val DISALLOWED_PARAMS: Set<String> = setOf("before")
+    val DISALLOWED_PARAMS: Set<String> = setOf("before", "world")
 
     private const val ORIGIN_LIMIT = 1000
     private const val ROLLBACK_PREVIEW_MAX_RANGE = 150
     private val ROLLBACK_PREVIEW_MAX_AGE: Duration = Duration.ofDays(3)
+    private val OVERWORLD = Identifier.fromNamespaceAndPath("minecraft", "overworld")
     private val ORIGIN_SEARCH_BOUNDS =
         BoundingBox(-ORIGIN_LIMIT, -Int.MAX_VALUE, -ORIGIN_LIMIT, ORIGIN_LIMIT, Int.MAX_VALUE, ORIGIN_LIMIT)
-    private val ALLOWED_ACTIONS = setOf("block-break", "block-place")
+    val ALLOWED_ACTIONS = setOf("block-break", "block-place")
 
     fun restrictSearchParams(source: CommandSourceStack, params: ActionSearchParams): ActionSearchParams {
         requirePlayerWithinOrigin(source)
@@ -71,6 +73,17 @@ object RestrictedLedgerAccess {
         )
     }
 
+    fun restrictInspectParams(source: CommandSourceStack, params: ActionSearchParams): ActionSearchParams {
+        requirePlayerWithinOrigin(source)
+        val restrictedBounds = params.bounds?.let(::clampToOrigin)
+
+        return copyWithRestrictions(
+            params,
+            restrictedBounds = restrictedBounds,
+            restrictedActions = params.actions?.toMutableSet()
+        )
+    }
+
     fun requirePlayerWithinOrigin(source: CommandSourceStack): ServerPlayer {
         val player = source.playerOrException
         if (abs(player.blockX) > ORIGIN_LIMIT || abs(player.blockZ) > ORIGIN_LIMIT) {
@@ -89,15 +102,16 @@ object RestrictedLedgerAccess {
     private fun copyWithRestrictions(
         params: ActionSearchParams,
         restrictedBounds: BoundingBox?,
-        restrictedAfter: Instant? = params.after
+        restrictedAfter: Instant? = params.after,
+        restrictedActions: MutableSet<Negatable<String>>? = restrictActions(params.actions)
     ): ActionSearchParams = params.copy(
         bounds = restrictedBounds,
         after = restrictedAfter,
-        actions = restrictActions(params.actions),
+        actions = restrictedActions,
         objects = params.objects?.toMutableSet(),
         sourceNames = params.sourceNames?.toMutableSet(),
         sourcePlayerIds = params.sourcePlayerIds?.toMutableSet(),
-        worlds = params.worlds?.toMutableSet()
+        worlds = mutableSetOf(Negatable.allow(OVERWORLD))
     )
 
     private fun clampToOrigin(bounds: BoundingBox): BoundingBox {
@@ -130,8 +144,9 @@ object RestrictedLedgerAccess {
         val allowedSpecialSources = params.sourceNames.orEmpty().filter { it.allowed }
         val hasDeniedSource = params.sourcePlayerIds.orEmpty().any { !it.allowed } ||
                 params.sourceNames.orEmpty().any { !it.allowed }
+        val targetsAllPlayers = allowedSpecialSources.any { it.property == Sources.PLAYER }
 
-        if (hasDeniedSource || allowedPlayerSources.size + allowedSpecialSources.size != 1) {
+        if (targetsAllPlayers || hasDeniedSource || allowedPlayerSources.size + allowedSpecialSources.size != 1) {
             throw SimpleCommandExceptionType(Component.translatable("error.ledger.restricted.source")).create()
         }
     }

@@ -1,6 +1,7 @@
 package com.github.quiltservertools.ledger.utility
 
 import com.github.quiltservertools.ledger.Ledger
+import com.github.quiltservertools.ledger.actions.ActionType
 import com.github.quiltservertools.ledger.actionutils.SearchResults
 import com.github.quiltservertools.ledger.config.SearchSpec
 import com.github.quiltservertools.ledger.database.DatabaseManager
@@ -26,13 +27,14 @@ object MessageUtils {
         source: CommandSourceStack,
         results: SearchResults,
         header: Component,
-        pageCommandFactory: (Int) -> String = { "/lg pg $it" }
+        pageCommandFactory: (Int) -> String = { "/lg pg $it" },
+        actionTransformer: (List<ActionType>) -> List<ActionType> = { it }
     ) {
         // If the player has a Ledger compatible client, we send results as action packets rather than as chat messages
         if (source.hasPlayer() && source.playerOrException.hasNetworking()) {
             for (n in results.page..results.pages) {
                 val networkResults = DatabaseManager.searchActions(results.searchParams, n)
-                networkResults.actions.forEach {
+                actionTransformer(networkResults.actions).forEach {
                     ServerPlayNetworking.send(source.playerOrException, ActionS2CPacket(it))
                 }
             }

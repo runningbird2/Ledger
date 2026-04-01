@@ -40,7 +40,11 @@ object RestrictedSearchCommand : BuildableCommand {
                     )
             )
             .then(
-                SearchParamArgument.argument(CommandConsts.PARAMS, RestrictedLedgerAccess.DISALLOWED_PARAMS)
+                SearchParamArgument.argument(
+                    CommandConsts.PARAMS,
+                    RestrictedLedgerAccess.DISALLOWED_PARAMS,
+                    RestrictedLedgerAccess.ALLOWED_ACTIONS
+                )
                     .executes {
                         val restrictedParams =
                             RestrictedLedgerAccess.restrictSearchParams(
@@ -87,10 +91,10 @@ object RestrictedSearchCommand : BuildableCommand {
             MessageUtils.sendSearchResults(
                 source,
                 transformedResults,
-                Component.translatable("text.ledger.header.search").setStyle(TextColorPallet.primary)
-            ) { nextPage ->
-                "/search page $nextPage"
-            }
+                Component.translatable("text.ledger.header.search").setStyle(TextColorPallet.primary),
+                pageCommandFactory = { nextPage -> "/search page $nextPage" },
+                actionTransformer = RestrictedLedgerAccess::sanitizeRestrictedActions
+            )
         }
 
         return 1

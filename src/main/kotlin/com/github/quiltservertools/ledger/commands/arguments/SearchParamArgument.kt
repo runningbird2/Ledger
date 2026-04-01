@@ -47,8 +47,10 @@ object SearchParamArgument {
 
     fun argument(
         name: String,
-        disallowedParams: Set<String> = emptySet()
+        disallowedParams: Set<String> = emptySet(),
+        allowedActions: Set<String>? = null
     ): RequiredArgumentBuilder<CommandSourceStack, String> {
+        val suggesters = getParamSuggesters(allowedActions)
         return Commands.argument(name, StringArgumentType.greedyString())
             .suggests { context, builder ->
                 val input = builder.input
@@ -65,19 +67,19 @@ object SearchParamArgument {
                 }
                 if (lastColonIndex == -1) {
                     val offsetBuilder = builder.createOffset(lastSpaceIndex + 1)
-                    builder.add(suggestCriteria(offsetBuilder, disallowedParams))
+                    builder.add(suggestCriteria(offsetBuilder, suggesters, disallowedParams))
                 } else {
                     val spaceSplit = input.substring(0, lastColonIndex).split(" ").toTypedArray()
                     val criterion = spaceSplit[spaceSplit.size - 1]
                     val criteriaArg = input.substring(lastColonIndex + 1)
-                    return@suggests if (!paramSuggesters.containsKey(criterion) || criterion in disallowedParams) {
+                    return@suggests if (!suggesters.containsKey(criterion) || criterion in disallowedParams) {
                         builder.buildFuture()
                     } else {
-                        val suggester = paramSuggesters[criterion]
+                        val suggester = suggesters[criterion]
                         val remaining = suggester!!.getRemaining(criteriaArg)
                         if (remaining > 0) {
                             val offsetBuilder = builder.createOffset(input.length - remaining + 1)
-                            suggestCriteria(offsetBuilder, disallowedParams).buildFuture()
+                            suggestCriteria(offsetBuilder, suggesters, disallowedParams).buildFuture()
                         } else {
                             val offsetBuilder = builder.createOffset(lastColonIndex + 1)
                             suggester.listSuggestions(context, offsetBuilder)
@@ -216,15 +218,26 @@ object SearchParamArgument {
 
     private fun suggestCriteria(
         builder: SuggestionsBuilder,
+        suggesters: Map<String, Parameter<*>>,
         disallowedParams: Set<String> = emptySet()
     ): SuggestionsBuilder {
         val input = builder.remaining.lowercase()
-        for (param in paramSuggesters.keys) {
+        for (param in suggesters.keys) {
             if (param !in disallowedParams && param.startsWith(input)) {
                 builder.suggest("$param:", Component.translatable("text.ledger.parameter.$param.description"))
             }
         }
         return builder
+    }
+
+    private fun getParamSuggesters(allowedActions: Set<String>?): Map<String, Parameter<*>> {
+        if (allowedActions == null) {
+            return paramSuggesters
+        }
+
+        return HashMap(paramSuggesters).apply {
+            this["action"] = NegatableParameter(ActionParameter(allowedActions))
+        }
     }
 
     private open class Parameter<T>(private val parameter: SimpleParameter<T>) {
