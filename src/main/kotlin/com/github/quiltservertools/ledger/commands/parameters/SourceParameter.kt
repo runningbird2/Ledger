@@ -9,7 +9,9 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.SharedSuggestionProvider
 import java.util.concurrent.CompletableFuture
 
-class SourceParameter : SimpleParameter<String>() {
+class SourceParameter(
+    private val disallowedSuggestions: Set<String> = emptySet()
+) : SimpleParameter<String>() {
     override fun parse(stringReader: StringReader): String {
         val i: Int = stringReader.cursor
 
@@ -27,10 +29,11 @@ class SourceParameter : SimpleParameter<String>() {
         val stringReader = StringReader(builder.input)
         stringReader.cursor = builder.start
 
-        val sources = context.source.onlinePlayerNames
+        val sources = context.source.onlinePlayerNames.toMutableSet()
         DatabaseManager.getKnownSources().forEach {
             sources.add("@$it")
         }
+        sources.removeAll(disallowedSuggestions)
         return SharedSuggestionProvider.suggest(
             sources,
             builder

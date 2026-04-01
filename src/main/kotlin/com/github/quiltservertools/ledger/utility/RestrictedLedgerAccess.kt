@@ -26,6 +26,7 @@ object RestrictedLedgerAccess {
     const val INSPECT_PERMISSION = "ledger.commands.moderator.inspect"
     const val MODSPAWN_PERMISSION = "ledger.commands.moderator.modspawn"
     val DISALLOWED_PARAMS: Set<String> = setOf("before", "world")
+    val DISALLOWED_SOURCE_SUGGESTIONS: Set<String> = setOf("@player")
 
     private const val ORIGIN_LIMIT = 1000
     private const val ROLLBACK_PREVIEW_MAX_RANGE = 150

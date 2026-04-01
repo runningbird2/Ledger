@@ -43,7 +43,8 @@ object RestrictedSearchCommand : BuildableCommand {
                 SearchParamArgument.argument(
                     CommandConsts.PARAMS,
                     RestrictedLedgerAccess.DISALLOWED_PARAMS,
-                    RestrictedLedgerAccess.ALLOWED_ACTIONS
+                    RestrictedLedgerAccess.ALLOWED_ACTIONS,
+                    RestrictedLedgerAccess.DISALLOWED_SOURCE_SUGGESTIONS
                 )
                     .executes {
                         val restrictedParams =

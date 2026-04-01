@@ -48,9 +48,10 @@ object SearchParamArgument {
     fun argument(
         name: String,
         disallowedParams: Set<String> = emptySet(),
-        allowedActions: Set<String>? = null
+        allowedActions: Set<String>? = null,
+        disallowedSourceSuggestions: Set<String> = emptySet()
     ): RequiredArgumentBuilder<CommandSourceStack, String> {
-        val suggesters = getParamSuggesters(allowedActions)
+        val suggesters = getParamSuggesters(allowedActions, disallowedSourceSuggestions)
         return Commands.argument(name, StringArgumentType.greedyString())
             .suggests { context, builder ->
                 val input = builder.input
@@ -230,13 +231,21 @@ object SearchParamArgument {
         return builder
     }
 
-    private fun getParamSuggesters(allowedActions: Set<String>?): Map<String, Parameter<*>> {
-        if (allowedActions == null) {
+    private fun getParamSuggesters(
+        allowedActions: Set<String>?,
+        disallowedSourceSuggestions: Set<String>
+    ): Map<String, Parameter<*>> {
+        if (allowedActions == null && disallowedSourceSuggestions.isEmpty()) {
             return paramSuggesters
         }
 
         return HashMap(paramSuggesters).apply {
-            this["action"] = NegatableParameter(ActionParameter(allowedActions))
+            if (allowedActions != null) {
+                this["action"] = NegatableParameter(ActionParameter(allowedActions))
+            }
+            if (disallowedSourceSuggestions.isNotEmpty()) {
+                this["source"] = NegatableParameter(SourceParameter(disallowedSourceSuggestions))
+            }
         }
     }
 
