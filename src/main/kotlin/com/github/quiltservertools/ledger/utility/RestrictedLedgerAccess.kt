@@ -75,14 +75,7 @@ object RestrictedLedgerAccess {
     }
 
     fun restrictInspectParams(source: CommandSourceStack, params: ActionSearchParams): ActionSearchParams {
-        requirePlayerWithinOrigin(source)
-        val restrictedBounds = params.bounds?.let(::clampToOrigin)
-
-        return copyWithRestrictions(
-            params,
-            restrictedBounds = restrictedBounds,
-            restrictedActions = params.actions?.toMutableSet()
-        )
+        return restrictSearchParams(source, params)
     }
 
     fun requirePlayerWithinOrigin(source: CommandSourceStack): ServerPlayer {
