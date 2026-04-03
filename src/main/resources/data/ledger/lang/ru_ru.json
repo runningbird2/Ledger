@@ -52,6 +52,7 @@
   "text.ledger.action.item-remove": "удалил",
   "text.ledger.action.item-pick-up": "подобрал",
   "text.ledger.action.item-drop": "выкинул",
+  "text.ledger.action.entity-place": "разместил",
   "text.ledger.action.entity-kill": "убил",
   "text.ledger.action.entity-change": "изменил",
 

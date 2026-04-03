@@ -46,6 +46,7 @@
   "text.ledger.action.block-break": "gebroken",
   "text.ledger.action.item-insert": "toegevoegd",
   "text.ledger.action.item-remove": "verwijderd",
+  "text.ledger.action.entity-place": "geplaatst",
   "text.ledger.action.entity-kill": "gedood",
 
   "text.ledger.network.protocols_mismatched": "Protocolversies komen niet overeen: client mod is Ledger protocolversie %d en de clientversie is %d",

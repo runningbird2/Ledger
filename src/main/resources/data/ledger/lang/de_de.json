@@ -50,6 +50,7 @@
     "text.ledger.action.block-break": "zerstört",
     "text.ledger.action.item-insert": "hinzugefügt",
     "text.ledger.action.item-remove": "entfernt",
+    "text.ledger.action.entity-place": "platziert",
     "text.ledger.action.entity-kill": "getötet",
 
     "text.ledger.network.protocols_mismatched": "Keine passende Protokoll-Version: Client-Mod ist Ledger Protokoll-Version %d und die Client Version ist %d",

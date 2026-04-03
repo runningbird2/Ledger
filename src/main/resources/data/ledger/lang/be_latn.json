@@ -57,6 +57,7 @@
     "text.ledger.action.item-remove": "uziaŭ",
     "text.ledger.action.item-pick-up": "padabraŭ",
     "text.ledger.action.item-drop": "skinuŭ",
+    "text.ledger.action.entity-place": "pastaviŭ",
     "text.ledger.action.entity-kill": "zabiŭ",
     "text.ledger.action.entity-change": "zmianiŭ",
 

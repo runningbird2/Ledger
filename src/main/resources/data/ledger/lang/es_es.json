@@ -54,6 +54,7 @@
     "text.ledger.action.item-remove": "quitado",
     "text.ledger.action.item-pick-up": "recogido",
     "text.ledger.action.item-drop": "dropeado",
+    "text.ledger.action.entity-place": "colocado",
     "text.ledger.action.entity-kill": "matado",
     "text.ledger.action.entity-change": "cambiado",
 

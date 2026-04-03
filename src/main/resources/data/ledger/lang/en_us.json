@@ -57,6 +57,7 @@
     "text.ledger.action.item-remove": "removed",
     "text.ledger.action.item-pick-up": "picked up",
     "text.ledger.action.item-drop": "dropped",
+    "text.ledger.action.entity-place": "placed",
     "text.ledger.action.entity-kill": "killed",
     "text.ledger.action.entity-change": "changed",
     "text.ledger.action.entity-mount": "mounted",

@@ -49,6 +49,7 @@
   "text.ledger.action.block-break": "破坏",
   "text.ledger.action.item-insert": "放入",
   "text.ledger.action.item-remove": "拿取",
+  "text.ledger.action.entity-place": "放置",
   "text.ledger.action.entity-kill": "杀死",
 
   "text.ledger.network.protocols_mismatched": "协议版本不匹配: 客户端协议版本 %d 服务端版本为 %d",

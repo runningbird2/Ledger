@@ -54,6 +54,7 @@
   "text.ledger.action.item-remove": "拿取",
   "text.ledger.action.item-pick-up": "撿起",
   "text.ledger.action.item-drop": "掉落",
+  "text.ledger.action.entity-place": "放置",
   "text.ledger.action.entity-kill": "殺死",
   "text.ledger.action.entity-change": "改變",
 

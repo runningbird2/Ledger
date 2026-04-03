@@ -57,6 +57,7 @@
     "text.ledger.action.item-remove": "узяў",
     "text.ledger.action.item-pick-up": "падабраў",
     "text.ledger.action.item-drop": "скінуў",
+    "text.ledger.action.entity-place": "паставіў",
     "text.ledger.action.entity-kill": "забіў",
     "text.ledger.action.entity-change": "змяніў",
 

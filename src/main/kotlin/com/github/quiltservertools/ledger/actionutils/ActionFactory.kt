@@ -8,6 +8,7 @@ import com.github.quiltservertools.ledger.actions.EntityChangeActionType
 import com.github.quiltservertools.ledger.actions.EntityDismountActionType
 import com.github.quiltservertools.ledger.actions.EntityKillActionType
 import com.github.quiltservertools.ledger.actions.EntityMountActionType
+import com.github.quiltservertools.ledger.actions.EntityPlaceActionType
 import com.github.quiltservertools.ledger.actions.ItemDropActionType
 import com.github.quiltservertools.ledger.actions.ItemInsertActionType
 import com.github.quiltservertools.ledger.actions.ItemPickUpActionType
@@ -249,6 +250,19 @@ object ActionFactory {
     fun entityKillAction(world: Level, pos: BlockPos, entity: Entity, source: String): EntityKillActionType {
         val action = EntityKillActionType()
         setEntityData(action, pos, world, entity, source)
+        return action
+    }
+
+    fun entityPlaceAction(
+        world: Level,
+        pos: BlockPos,
+        entity: Entity,
+        source: String,
+        player: Player?
+    ): EntityPlaceActionType {
+        val action = EntityPlaceActionType()
+        setEntityData(action, pos, world, entity, source)
+        action.sourceProfile = player?.nameAndId()
         return action
     }
 
